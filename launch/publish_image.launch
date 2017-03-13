@@ -1,0 +1,13 @@
+<launch>
+  <arg name="doDebug" default="false" />
+  <arg if="$(arg doDebug)" name="launchPrefix" value="xterm -e gdb -args" />
+  <arg unless="$(arg doDebug)" name="launchPrefix" value="" />
+  
+  <arg name="image_topic_name" default="/camera/image" doc="camera topic name" />
+  <arg name="image_path" doc="path to image to publish" />
+
+  <node pkg="victoria_perception" name="publish_image" type="publish_image_node" respawn="false" output="screen" launch-prefix="$(arg launchPrefix)" >
+    <param name="image_topic_name" value="$(arg image_topic_name)" type="str" />
+    <param name="image_path" value="$(arg image_path)" type="str" />
+  </node>
+</launch>
