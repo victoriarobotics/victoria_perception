@@ -1,0 +1,13 @@
+# E.g.,
+# UR;FF0000;some string for upper left of immage
+# Colon-separated tuple.
+# First substring is:
+#    LL -- place annotation in the lower left.
+#    LR -- place annotation in the lower right.
+#    UL -- place annotation in the upper left.
+#    UR -- place annotation in the upper right.
+# Second substring is the hex BGR color value for the annotation.
+# Third substring is short string to be place in image.
+string annotation
+---
+string result
