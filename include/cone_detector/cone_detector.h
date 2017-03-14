@@ -33,7 +33,8 @@
 #include "opencv2/core/core.hpp"
 #include <string>
 
-//#include "kaimi_mid_camera/kaimi_mid_camera_paramsConfig.h"
+#include "victoria_perception/AnnotateDetectorImage.h"
+
 
 using namespace std;
 using namespace cv;
@@ -91,6 +92,21 @@ private:
 //
 //	static void configurationCallback(kaimi_mid_camera::kaimi_mid_camera_paramsConfig &config, uint32_t level);
 
+	// Process service call.
+	ros::ServiceServer annotateService;
+	string ll_annotation_;
+	Scalar ll_color_;
+	string lr_annotation_;
+	Scalar lr_color_;
+	string ul_annotation_;
+	Scalar ul_color_;
+	string ur_annotation_;
+	Scalar ur_color_;
+	bool annotateCb(victoria_perception::AnnotateDetectorImage::Request &request,
+			victoria_perception::AnnotateDetectorImage::Response &response);
+
+	static bool strToBgr(string bgr_string, Scalar& out_color);
+	
 	// Process one image.
 	void imageCb(Mat& image);
 
