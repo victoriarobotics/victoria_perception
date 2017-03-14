@@ -1,3 +1,27 @@
+// Copyright <YEAR> <COPYRIGHT HOLDER>
+
+// Redistribution and use in source and binary forms, with or without modification,
+// are permitted provided that the following conditions are met:
+
+// 1. Redistributions of source code must retain the above copyright notice,
+// this list of conditions and the following disclaimer.
+
+// 2. Redistributions in binary form must reproduce the above copyright notice,
+// this list of conditions and the following disclaimer in the documentation and/or
+// other materials provided with the distribution.
+
+// 3. Neither the name of the copyright holder nor the names of its contributors may be used to endorse
+// or promote products derived from this software without specific prior written permission.
+
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR
+// IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
+// FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS
+// BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+// BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+// INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+// OF THE POSSIBILITY OF SUCH DAMAGE.
+
 #include <opencv2/core/core.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
@@ -72,7 +96,7 @@ void ConeDetector::imageCb(Mat& image) {
 
         if (max_blob_index != -1) {
             approxPolyDP( Mat(contours[max_blob_index]), contours_poly[max_blob_index], 3, true );
-            boundRect[max_blob_index] = boundingRect( Mat(contours_poly[max_blob_index]) );
+            //boundRect[max_blob_index] = boundingRect( Mat(contours_poly[max_blob_index]) );
             minEnclosingCircle( (Mat) contours_poly[max_blob_index], center, radius );
 
             object_x_ = center.x;
@@ -84,8 +108,19 @@ void ConeDetector::imageCb(Mat& image) {
             object_area_ = max_blob_size;
 
             if (show_debug_windows_) {
-                Scalar color = Scalar(rand() % 255, rand() % 255, rand() % 255);
-                //#####               circle(image, center, (int)radius, color, 2, 8, 0 );
+                Scalar color = Scalar(0, 0, 255);
+                Scalar non_primary_color = Scalar(0, 255, 255);
+                circle(image, center, (int)radius, color, 5, 8, 0 );
+		for (size_t i = 0; i < contours.size(); i++) {
+		  if (i == max_blob_index) continue;
+		  approxPolyDP( Mat(contours[i]), contours_poly[i], 3, true );
+		  //boundRect[i] = boundingRect( Mat(contours_poly[i]) );
+		  float radius;
+		  Point2f obj_center;
+		  minEnclosingCircle( (Mat) contours_poly[i], obj_center, radius );
+		  circle(image, obj_center, (int) radius, non_primary_color, 4, 8, 0);
+		}
+
             }
 
             stringstream msg;
@@ -98,11 +133,10 @@ void ConeDetector::imageCb(Mat& image) {
             std_msgs::String message;
             message.data = msg.str();
             cone_found_pub_.publish(message);
-            //ROS_INFO("[ConeDetector::imageCb] FOUND at x: %d, y: %d, area: %d", object_x_, object_y_, max_blob_size);
         }
 
         if (show_step_times_) duration_find_argest = ( std::clock() - start ) / (double)CLOCKS_PER_SEC;
-    } else {
+
         stringstream msg;
         msg << "ConeDetector:NotFound;X:0;Y:0;AREA:0;I:0;ROWS:"
             << image_height_
@@ -110,7 +144,6 @@ void ConeDetector::imageCb(Mat& image) {
         std_msgs::String message;
         message.data = msg.str();
         cone_found_pub_.publish(message);
-        //ROS_INFO("[ConeDetector::imageCb] NOT FOUND");
         duration_find_argest = 0;
     }
 
@@ -118,7 +151,6 @@ void ConeDetector::imageCb(Mat& image) {
     if (show_debug_windows_) {
         imshow("[kaimi_mid_camera] Raw Image", image); //show the original image
         imshow("[kaimi_mid_camera] Thresholded Image", imgThresholded); //show the thresholded image
-        // ROS_INFO("[ConeDetector::imageCb] showed images");
         cv::waitKey(25);
     }
 
