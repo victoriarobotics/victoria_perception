@@ -6,6 +6,7 @@
   <arg name="camera_name" default="primesense_camera" doc="Name of camera, to get properties" />
   <arg name="fps" default="10" doc="Max frames per second to report object detection results" />
   <arg name="image_topic_name" default="/camera/image" doc="camera topic name" />
+  <arg name="image_transport" default="" />
   <arg name="show_debug_windows" default="true" doc="true => show debugging X-window panes" />
   <arg name="show_step_times" default="false" doc="true => show computation times for interesting parts of object recognition" />
 
@@ -22,6 +23,7 @@
     <param name="camera_name" value="$(arg camera_name)" type="str" />
     <param name="fps" value="$(arg fps)" type="int" />
     <param name="image_topic_name" value="$(arg image_topic_name)" type="str" />
+    <param name="image_transport" value="$(arg image_transport)" type="str" />
     <param name="show_debug_windows" value="$(arg show_debug_windows)" type="bool" />
     <param name="show_step_times" value="$(arg show_step_times)" type="bool" />
     <param name="low_hue_range" value="$(arg low_hue_range)" type="int" />
