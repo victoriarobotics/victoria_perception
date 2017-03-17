@@ -69,6 +69,12 @@ private:
 	// Name of camera, to get camera properties.
 	string camera_name_;
 
+	// Publish annotated image.
+	image_transport::Publisher image_pub_annotated_;
+
+	// Publish thresholded image.
+	image_transport::Publisher image_pub_thresholded_;
+
 	// Subscriber to images on "image_topic_name_" topic.
 	image_transport::Subscriber image_sub_;
 

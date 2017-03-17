@@ -42,57 +42,57 @@ using namespace cv;
 using namespace std;
 
 bool ConeDetector::strToBgr(string bgr_string, Scalar& out_color) {
-  char* parse_end;
-  long bgr = strtoll(bgr_string.c_str(), &parse_end, 16);
-  out_color = Scalar((bgr >> 16) & 0xFF, (bgr >> 8) & 0xFF, bgr & 0xFF);
-  return true;
+    char* parse_end;
+    long bgr = strtoll(bgr_string.c_str(), &parse_end, 16);
+    out_color = Scalar((bgr >> 16) & 0xFF, (bgr >> 8) & 0xFF, bgr & 0xFF);
+    return true;
 }
 
 bool ConeDetector::annotateCb(victoria_perception::AnnotateDetectorImage::Request &request,
-			    victoria_perception::AnnotateDetectorImage::Response &response) {
-  vector<string> fields;
-  split(fields, request.annotation, is_any_of(";"));
-  ROS_INFO("[ConeDetector::annotate] request: %s, fields: %ld", request.annotation.c_str(), fields.size());
-  if (fields.size() != 3) {
-    response.result = "Invalid request format. Expected three semicolon-separated fields";
-    return false;
-  }
+                              victoria_perception::AnnotateDetectorImage::Response &response) {
+    vector<string> fields;
+    split(fields, request.annotation, is_any_of(";"));
+    ROS_INFO("[ConeDetector::annotate] request: %s, fields: %ld", request.annotation.c_str(), fields.size());
+    if (fields.size() != 3) {
+        response.result = "Invalid request format. Expected three semicolon-separated fields";
+        return false;
+    }
 
-  if (boost::iequals(fields[0], "LL")) {
-    ll_annotation_ = fields[2];
-    bool color_ok = strToBgr(fields[1], ll_color_);
-    if (!color_ok) {
-      response.result = "Invalid request, seconf field is not a valid 6-character hex BGR value";
-      return false;
+    if (boost::iequals(fields[0], "LL")) {
+        ll_annotation_ = fields[2];
+        bool color_ok = strToBgr(fields[1], ll_color_);
+        if (!color_ok) {
+            response.result = "Invalid request, seconf field is not a valid 6-character hex BGR value";
+            return false;
+        }
+    } else if (boost::iequals(fields[0], "LR")) {
+        lr_annotation_ = fields[2];
+        bool color_ok = strToBgr(fields[1], lr_color_);
+        if (!color_ok) {
+            response.result = "Invalid request, seconf field is not a valid 6-character hex BGR value";
+            return false;
+        }
+    } else if (boost::iequals(fields[0], "UL")) {
+        ul_annotation_ = fields[2];
+        bool color_ok = strToBgr(fields[1], ul_color_);
+        if (!color_ok) {
+            response.result = "Invalid request, seconf field is not a valid 6-character hex BGR value";
+            return false;
+        }
+    } else if (boost::iequals(fields[0], "UR")) {
+        ur_annotation_ = fields[2];
+        bool color_ok = strToBgr(fields[1], ur_color_);
+        if (!color_ok) {
+            response.result = "Invalid request, seconf field is not a valid 6-character hex BGR value";
+            return false;
+        }
+    } else {
+        response.result = "Invalid request, first field is not LL, LR, UL or UR";
+        return false;
     }
-  } else if (boost::iequals(fields[0], "LR")) {
-    lr_annotation_ = fields[2];
-    bool color_ok = strToBgr(fields[1], lr_color_);
-    if (!color_ok) {
-      response.result = "Invalid request, seconf field is not a valid 6-character hex BGR value";
-      return false;
-    }
-  } else if (boost::iequals(fields[0], "UL")) {
-    ul_annotation_ = fields[2];
-    bool color_ok = strToBgr(fields[1], ul_color_);
-    if (!color_ok) {
-      response.result = "Invalid request, seconf field is not a valid 6-character hex BGR value";
-      return false;
-    }
-  } else if (boost::iequals(fields[0], "UR")) {
-    ur_annotation_ = fields[2];
-    bool color_ok = strToBgr(fields[1], ur_color_);
-    if (!color_ok) {
-      response.result = "Invalid request, seconf field is not a valid 6-character hex BGR value";
-      return false;
-    }
-  } else {
-    response.result = "Invalid request, first field is not LL, LR, UL or UR";
-    return false;
-  }
-  
-  response.result = "OK";
-  return true;
+
+    response.result = "OK";
+    return true;
 }
 
 void ConeDetector::imageCb(Mat& image) {
@@ -169,30 +169,33 @@ void ConeDetector::imageCb(Mat& image) {
                 Scalar color = Scalar(0, 0, 255);
                 Scalar non_primary_color = Scalar(0, 255, 255);
                 circle(image, center, (int)radius, color, 5, 8, 0 );
-		for (size_t i = 0; i < contours.size(); i++) {
-		  if (i == max_blob_index) continue;
-		  approxPolyDP( Mat(contours[i]), contours_poly[i], 3, true );
-		  //boundRect[i] = boundingRect( Mat(contours_poly[i]) );
-		  float radius;
-		  Point2f obj_center;
-		  minEnclosingCircle( (Mat) contours_poly[i], obj_center, radius );
-		  circle(image, obj_center, (int) radius, non_primary_color, 4, 8, 0);
-		  if (ll_annotation_.length() > 0) {
-		    putText(image, ll_annotation_, cvPoint(4, image.rows - 4), FONT_HERSHEY_DUPLEX, 2.0, ll_color_, 8, true); 
-		  }
+                for (size_t i = 0; i < contours.size(); i++) {
+                    if (i == max_blob_index) continue;
+                    approxPolyDP( Mat(contours[i]), contours_poly[i], 3, true );
+                    //boundRect[i] = boundingRect( Mat(contours_poly[i]) );
+                    float radius;
+                    Point2f obj_center;
+                    minEnclosingCircle( (Mat) contours_poly[i], obj_center, radius );
+                    circle(image, obj_center, (int) radius, non_primary_color, 4, 8, 0);
+                    if (ll_annotation_.length() > 0) {
+                        putText(image, ll_annotation_, cvPoint(4, image.rows - 4), FONT_HERSHEY_DUPLEX, 2.0, ll_color_, 8, true);
+                    }
 
-		  if (lr_annotation_.length() > 0) {
-		    putText(image, lr_annotation_, cvPoint(image.cols / 2 + 4, image.rows - 4), FONT_HERSHEY_DUPLEX, 2.0, lr_color_, 8, true); 
-		  }
+                    if (lr_annotation_.length() > 0) {
+                        putText(image, lr_annotation_, cvPoint(image.cols / 2 + 4, image.rows - 4), FONT_HERSHEY_DUPLEX, 2.0, lr_color_, 8, true);
+                    }
 
-		  if (ul_annotation_.length() > 0) {
-		    putText(image, ul_annotation_, cvPoint(4, 50), FONT_HERSHEY_DUPLEX, 2.0, ul_color_, 8, false); 
-		  }
+                    if (ul_annotation_.length() > 0) {
+                        putText(image, ul_annotation_, cvPoint(4, 50), FONT_HERSHEY_DUPLEX, 2.0, ul_color_, 8, false);
+                    }
 
-		  if (ur_annotation_.length() > 0) {
-		    putText(image, ur_annotation_, cvPoint(image.cols / 2 + 4, 50), FONT_HERSHEY_DUPLEX, 2.0, ur_color_, 8, false); 
-		  }
-}
+                    if (ur_annotation_.length() > 0) {
+                        putText(image, ur_annotation_, cvPoint(image.cols / 2 + 4, 50), FONT_HERSHEY_DUPLEX, 2.0, ur_color_, 8, false);
+                    }
+                }
+
+                sensor_msgs::ImagePtr annotated_image = cv_bridge::CvImage(std_msgs::Header(), "bgr8", image).toImageMsg();
+                image_pub_annotated_.publish(annotated_image);
             }
 
             stringstream msg;
@@ -221,19 +224,18 @@ void ConeDetector::imageCb(Mat& image) {
 
     if (show_step_times_) start = clock();
     if (show_debug_windows_) {
-        imshow("[kaimi_mid_camera] Raw Image", image); //show the original image
-        imshow("[kaimi_mid_camera] Thresholded Image", imgThresholded); //show the thresholded image
-        cv::waitKey(25);
+        sensor_msgs::ImagePtr thresholded_image = cv_bridge::CvImage(std_msgs::Header(), "mono8", imgThresholded).toImageMsg();
+        image_pub_thresholded_.publish(thresholded_image);
     }
 
     duration_imshow = ( std::clock() - start ) / (double)CLOCKS_PER_SEC;
     if (show_step_times_) ROS_INFO("durations cvtColor: %7.5f, inRange: %7.5f, findLargest: %7.5f, showWindows: %7.5f, copyTo: %7.5f, findContours: %7.5f, contoursPoly: %7.5f",
-                                 duration_cvtColor,
-                                 duration_inRange,
-                                 duration_find_argest,
-                                 duration_imshow,
-                                 duration_copyTo,
-                                 duration_findContours, duration_contoursPoly);
+                                       duration_cvtColor,
+                                       duration_inRange,
+                                       duration_find_argest,
+                                       duration_imshow,
+                                       duration_copyTo,
+                                       duration_findContours, duration_contoursPoly);
 }
 
 ConeDetector::ConeDetector() :
@@ -248,15 +250,14 @@ ConeDetector::ConeDetector() :
     high_contour_area_(200000),
     show_debug_windows_(false),
     show_step_times_(false),
-    ll_annotation_("Hi there"),
+    ll_annotation_(""),
     ll_color_(255, 255, 0),
     lr_annotation_(""),
     lr_color_(255, 255, 255),
     ul_annotation_(""),
     ul_color_(255, 255, 255),
     ur_annotation_(""),
-    ur_color_(255, 255, 255)
-{
+    ur_color_(255, 255, 255) {
     //    f = boost::bind(&ConeDetector::configurationCallback, _1, _2);
     //    dynamicConfigurationServer.setCallback(f);
 
@@ -286,13 +287,12 @@ ConeDetector::ConeDetector() :
     //show_debug_windows_ = false;
 
     annotateService = nh_.advertiseService("annotate_detector_image", &ConeDetector::annotateCb, this);
+    image_pub_annotated_ = it_.advertise("cone_detector/annotated_image", 1);
+    image_pub_thresholded_ = it_.advertise("cone_detector/thresholded_image", 1);
     image_sub_ = it_.subscribe(image_topic_name_, 1, &ConeDetector::imageTopicCb, this);
     cone_found_pub_ = nh_.advertise<std_msgs::String>("cone_detector_summary", 2);
     if (show_debug_windows_) {
         static const char* controlWindowName = "[kaimi_mid_camera] Control";
-
-        namedWindow("[kaimi_mid_camera] Raw Image", WINDOW_NORMAL);
-        namedWindow("[kaimi_mid_camera] Thresholded Image", WINDOW_NORMAL);
 
         // Create trackbars in "Control" window
         namedWindow(controlWindowName, CV_WINDOW_AUTOSIZE); //create a window called "Control"
