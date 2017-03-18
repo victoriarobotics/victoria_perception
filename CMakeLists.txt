@@ -138,7 +138,7 @@ include_directories(
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries
 ## either from message generation or dynamic reconfigure
-# add_dependencies(${PROJECT_NAME} ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+#add_dependencies(${PROJECT_NAME} ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
@@ -147,6 +147,8 @@ add_executable(cone_detector_node
   src/cone_detector_node.cpp
   src/cone_detector.cpp
 )
+
+add_dependencies(cone_detector_node ${PROJECT_NAME}_generate_messages_cpp)
 
 add_executable(publish_image_node
   src/publish_image_node.cpp
