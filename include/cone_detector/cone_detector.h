@@ -84,6 +84,12 @@ private:
 	// OpenCV image transport.
 	image_transport::ImageTransport it_;
 
+	// Image will be resized to this x (cols) size.
+	int resize_x_;
+
+	// Image will be resized to this y (rows) size.
+	int resize_y_;
+
 	// Parameter-settable to show X-windows debugging windows.
 	bool show_debug_windows_;
 

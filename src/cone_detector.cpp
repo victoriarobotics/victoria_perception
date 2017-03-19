@@ -95,8 +95,9 @@ bool ConeDetector::annotateCb(victoria_perception::AnnotateDetectorImage::Reques
     return true;
 }
 
-void ConeDetector::imageCb(Mat& image) {
+void ConeDetector::imageCb(Mat& original_image) {
     clock_t start;
+    double duration_resize = 0;         // Time taken for resize call.
     double duration_cvtColor = 0;       // Time taken for cvtColor call.
     double duration_inRange = 0;        // Time taken for inRange call.
     double duration_copyTo = 0;         // Time taken for copyTo operation.
@@ -107,6 +108,12 @@ void ConeDetector::imageCb(Mat& image) {
 
     Mat img_HSV;
     if (show_step_times_) start = clock();
+    Size resize_dimensions(resize_x_, resize_y_);
+    Mat image;
+    if (show_step_times_) start = clock();
+    resize(original_image, image, resize_dimensions);
+    if (show_step_times_) duration_resize = ( std::clock() - start ) / (double)CLOCKS_PER_SEC;
+
     cvtColor(image, img_HSV, CV_BGR2HSV); // Convert the captured frame from BGR to HSV
     if (show_step_times_) duration_cvtColor = ( std::clock() - start ) / (double)CLOCKS_PER_SEC;
 
@@ -234,7 +241,8 @@ void ConeDetector::imageCb(Mat& image) {
     }
 
     duration_imshow = ( std::clock() - start ) / (double)CLOCKS_PER_SEC;
-    if (show_step_times_) ROS_INFO("durations cvtColor: %7.5f, inRange: %7.5f, findLargest: %7.5f, showWindows: %7.5f, copyTo: %7.5f, findContours: %7.5f, contoursPoly: %7.5f",
+    if (show_step_times_) ROS_INFO("durations resize: %7.5f, cvtColor: %7.5f, inRange: %7.5f, findLargest: %7.5f, showWindows: %7.5f, copyTo: %7.5f, findContours: %7.5f, contoursPoly: %7.5f",
+                                       duration_resize,
                                        duration_cvtColor,
                                        duration_inRange,
                                        duration_find_argest,
@@ -260,6 +268,8 @@ ConeDetector::ConeDetector() :
     ll_color_(255, 255, 0),
     lr_annotation_(""),
     lr_color_(255, 255, 255),
+    resize_x_(320),
+    resize_y_(240),
     ul_annotation_(""),
     ul_color_(255, 255, 255),
     ur_annotation_(""),
@@ -282,13 +292,17 @@ ConeDetector::ConeDetector() :
     ros::param::get("low_contour_area", low_contour_area_);
     ros::param::get("high_contour_area", high_contour_area_);
 
+    ros::param::get("resize_x", resize_x_);
+    ros::param::get("resize_y", resize_y_);
+
     ROS_INFO("[ConeDetector] PARAM camera_name: %s", camera_name_.c_str());
     ROS_INFO("[ConeDetector] PARAM image_topic_name: %s", image_topic_name_.c_str());
-    ROS_INFO("[ConeDetector] PARAM show_windows: %d", show_debug_windows_);
+    ROS_INFO("[ConeDetector] PARAM low_contour_area: %d, high_contour_area: %d", low_contour_area_, high_contour_area_);
     ROS_INFO("[ConeDetector] PARAM low_hue_range: %d, high_hue_range: %d", low_hue_range_, high_hue_range_);
     ROS_INFO("[ConeDetector] PARAM low_saturation_range: %d, high_saturation_range: %d, ", low_saturation_range_, high_saturation_range_);
     ROS_INFO("[ConeDetector] PARAM low_value_range: %d, high_value_range: %d", low_value_range_, high_value_range_);
-    ROS_INFO("[ConeDetector] PARAM low_contour_area: %d, high_contour_area: %d", low_contour_area_, high_contour_area_);
+    ROS_INFO("[ConeDetector] PARAM resize_x: %d, resize_y: %d", resize_x_, resize_y_);
+    ROS_INFO("[ConeDetector] PARAM show_windows: %d", show_debug_windows_);
 
     //show_debug_windows_ = false;
 
