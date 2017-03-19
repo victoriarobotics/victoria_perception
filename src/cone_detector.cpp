@@ -220,6 +220,11 @@ void ConeDetector::imageCb(Mat& image) {
         message.data = msg.str();
         cone_found_pub_.publish(message);
         duration_find_argest = 0;
+    } else {
+        if (show_debug_windows_) {
+            sensor_msgs::ImagePtr annotated_image = cv_bridge::CvImage(std_msgs::Header(), "bgr8", image).toImageMsg();
+            image_pub_annotated_.publish(annotated_image);
+        }
     }
 
     if (show_step_times_) start = clock();
@@ -236,6 +241,7 @@ void ConeDetector::imageCb(Mat& image) {
                                        duration_imshow,
                                        duration_copyTo,
                                        duration_findContours, duration_contoursPoly);
+    if (show_debug_windows_) { waitKey(1); }
 }
 
 ConeDetector::ConeDetector() :
