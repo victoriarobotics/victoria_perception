@@ -4,9 +4,10 @@
   <arg unless="$(arg doDebug)" name="launchPrefix" value="" />
   
   <arg name="camera_name" default="primesense_camera" doc="Name of camera, to get properties" />
+  <arg name="do_erode_dilate" default="true" doc="true => do erode/dilate step" />
   <arg name="fps" default="10" doc="Max frames per second to report object detection results" />
   <arg name="image_topic_name" default="/usb_cam/image_raw" doc="camera topic name" />
-  <arg name="image_transport" default="" doc="image transport (e.g., compressed) to be used" />
+  <arg name="image_transport" default="compressed" doc="image transport (e.g., compressed) to be used" />
   <arg name="resize_x" default="320" doc="Image will be resized to this many columns" />
   <arg name="resize_y" default="240" doc="Image will be resized to this many rows" />
   <arg name="show_debug_windows" default="true" doc="true => show debugging X-window panes" />
@@ -23,6 +24,7 @@
 
   <node pkg="victoria_perception" name="cone_detector" type="cone_detector_node" respawn="false" output="screen" launch-prefix="$(arg launchPrefix)" >
     <param name="camera_name" value="$(arg camera_name)" type="str" />
+    <param name="do_erode_dilate" value="$(arg do_erode_dilate)" type="bool" />
     <param name="fps" value="$(arg fps)" type="int" />
     <param name="image_topic_name" value="$(arg image_topic_name)" type="str" />
     <param name="image_transport" value="$(arg image_transport)" type="str" />
@@ -36,7 +38,7 @@
     <param name="high_value_range" value="$(arg high_value_range)" type="int" />
     <param name="low_contour_area" value="$(arg low_contour_area)" type="int" />
     <param name="high_contour_area" value="$(arg high_contour_area)" type="int" />
-    <param name="resize_x" value="$(arg resize_x)" />
-    <param name="resize_y" value="$(arg resize_y)" />
+    <param name="resize_x" value="$(arg resize_x)" type="int" />
+    <param name="resize_y" value="$(arg resize_y)" type="int" />
   </node>
 </launch>

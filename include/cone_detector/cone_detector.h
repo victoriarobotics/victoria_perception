@@ -52,6 +52,9 @@ private:
 	// ROS node handle.
 	ros::NodeHandle nh_;
 
+	// Do erode/dilate steps?
+	bool do_erode_dilate_;
+
 	// HSV Values and contour area range for the sample thresholding operation.
 	int low_hue_range_;
 	int high_hue_range_;

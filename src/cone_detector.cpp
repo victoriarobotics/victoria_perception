@@ -22,6 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
 // OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#include <cassert>
 #include <opencv2/core/core.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
@@ -99,6 +100,7 @@ void ConeDetector::imageCb(Mat& original_image) {
     clock_t start;
     double duration_resize = 0;         // Time taken for resize call.
     double duration_cvtColor = 0;       // Time taken for cvtColor call.
+    double duration_erode_dilate_ = 0;  // Time taken for erode/dilate calls.
     double duration_inRange = 0;        // Time taken for inRange call.
     double duration_copyTo = 0;         // Time taken for copyTo operation.
     double duration_find_argest = 0;    // Time taken to find largets blob.
@@ -122,6 +124,14 @@ void ConeDetector::imageCb(Mat& original_image) {
     if (show_step_times_) start = clock();
     inRange(img_HSV, Scalar(low_hue_range_, low_saturation_range_, low_value_range_), Scalar(high_hue_range_, high_saturation_range_, high_value_range_), imgThresholded); //Threshold the image
     if (show_step_times_) duration_inRange = ( std::clock() - start ) / (double)CLOCKS_PER_SEC;
+
+    if (do_erode_dilate_) {
+        if (show_step_times_) start = clock();
+        // Remove small objects from the background.
+        erode(imgThresholded, imgThresholded, getStructuringElement(MORPH_ELLIPSE, Size(3, 3)));
+        dilate(imgThresholded, imgThresholded, getStructuringElement(MORPH_ELLIPSE, Size(3, 3)));
+        if (show_step_times_) duration_erode_dilate_ = ( std::clock() - start ) / (double)CLOCKS_PER_SEC;
+    }
 
     vector<vector<Point> > contours;
     vector<Vec4i> hierarchy;
@@ -241,10 +251,19 @@ void ConeDetector::imageCb(Mat& original_image) {
     }
 
     duration_imshow = ( std::clock() - start ) / (double)CLOCKS_PER_SEC;
-    if (show_step_times_) ROS_INFO("durations resize: %7.5f, cvtColor: %7.5f, inRange: %7.5f, findLargest: %7.5f, showWindows: %7.5f, copyTo: %7.5f, findContours: %7.5f, contoursPoly: %7.5f",
+    if (show_step_times_) ROS_INFO("durations resize: %7.5f, "
+                                   "cvtColor: %7.5f"
+                                   ", inRange: %7.5f"
+                                   ", erode/dilate: %7.5f"
+                                   ", findLargest: %7.5f"
+                                   ", showWindows: %7.5f"
+                                   ", copyTo: %7.5f"
+                                   ", findContours: %7.5f"
+                                   ", contoursPoly: %7.5f",
                                        duration_resize,
                                        duration_cvtColor,
                                        duration_inRange,
+                                       duration_erode_dilate_,
                                        duration_find_argest,
                                        duration_imshow,
                                        duration_copyTo,
@@ -253,7 +272,9 @@ void ConeDetector::imageCb(Mat& original_image) {
 }
 
 ConeDetector::ConeDetector() :
+    nh_(ros::NodeHandle("~")),
     it_(nh_),
+    do_erode_dilate_(true),
     low_hue_range_(0),
     high_hue_range_(44),
     low_saturation_range_(181),
@@ -278,31 +299,34 @@ ConeDetector::ConeDetector() :
     //    dynamicConfigurationServer.setCallback(f);
 
 
-    ros::param::get("camera_name", camera_name_);
-    ros::param::get("~image_topic_name", image_topic_name_);
-    ros::param::get("~show_debug_windows", show_debug_windows_);
-    ros::param::get("~show_step_times", show_step_times_);
+    assert(ros::param::get("~camera_name", camera_name_));
+    assert(ros::param::get("~do_erode_dilate", do_erode_dilate_));
+    assert(ros::param::get("~image_topic_name", image_topic_name_));
+    assert(ros::param::get("~show_debug_windows", show_debug_windows_));
+    assert(ros::param::get("~show_step_times", show_step_times_));
 
-    ros::param::get("low_hue_range", low_hue_range_);
-    ros::param::get("high_hue_range", high_hue_range_);
-    ros::param::get("low_saturation_range", low_saturation_range_);
-    ros::param::get("high_saturation_range", high_saturation_range_);
-    ros::param::get("low_value_range", low_value_range_);
-    ros::param::get("high_value_range", high_value_range_);
-    ros::param::get("low_contour_area", low_contour_area_);
-    ros::param::get("high_contour_area", high_contour_area_);
+    assert(ros::param::get("~low_hue_range", low_hue_range_));
+    assert(ros::param::get("~high_hue_range", high_hue_range_));
+    assert(ros::param::get("~low_saturation_range", low_saturation_range_));
+    assert(ros::param::get("~high_saturation_range", high_saturation_range_));
+    assert(ros::param::get("~low_value_range", low_value_range_));
+    assert(ros::param::get("~high_value_range", high_value_range_));
+    assert(ros::param::get("~low_contour_area", low_contour_area_));
+    assert(ros::param::get("~high_contour_area", high_contour_area_));
 
-    ros::param::get("resize_x", resize_x_);
-    ros::param::get("resize_y", resize_y_);
+    assert(ros::param::get("~resize_x", resize_x_));
+    assert(ros::param::get("~resize_y", resize_y_));
 
     ROS_INFO("[ConeDetector] PARAM camera_name: %s", camera_name_.c_str());
+    ROS_INFO("[ConeDetector] PARAM do_erode_dilate: %s", do_erode_dilate_ ? "TRUE" : "FALSE");
     ROS_INFO("[ConeDetector] PARAM image_topic_name: %s", image_topic_name_.c_str());
     ROS_INFO("[ConeDetector] PARAM low_contour_area: %d, high_contour_area: %d", low_contour_area_, high_contour_area_);
     ROS_INFO("[ConeDetector] PARAM low_hue_range: %d, high_hue_range: %d", low_hue_range_, high_hue_range_);
     ROS_INFO("[ConeDetector] PARAM low_saturation_range: %d, high_saturation_range: %d, ", low_saturation_range_, high_saturation_range_);
     ROS_INFO("[ConeDetector] PARAM low_value_range: %d, high_value_range: %d", low_value_range_, high_value_range_);
     ROS_INFO("[ConeDetector] PARAM resize_x: %d, resize_y: %d", resize_x_, resize_y_);
-    ROS_INFO("[ConeDetector] PARAM show_windows: %d", show_debug_windows_);
+    ROS_INFO("[ConeDetector] PARAM show_step_times: %s", show_step_times_ ? "TRUE" : "FALSE");
+    ROS_INFO("[ConeDetector] PARAM show_debug_windows: %s", show_debug_windows_ ? "TRUE" : "FALSE");
 
     //show_debug_windows_ = false;
 
