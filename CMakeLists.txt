@@ -78,6 +78,7 @@ add_service_files(
 ## Generate added messages and services with any dependencies listed here
 generate_messages(
   DEPENDENCIES
+  sensor_msgs
   std_msgs
 )
 
@@ -112,7 +113,7 @@ generate_messages(
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
   INCLUDE_DIRS include
-  CATKIN_DEPENDS image_transport roscpp rospy std_msgs
+  CATKIN_DEPENDS image_transport roscpp rospy sensor_msgs std_msgs
   CATKIN_DEPENDS message_runtime
 #  DEPENDS system_lib
 )
@@ -138,7 +139,11 @@ include_directories(
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries
 ## either from message generation or dynamic reconfigure
-#add_dependencies(${PROJECT_NAME} ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+#add_dependencies(
+#  ${PROJECT_NAME} 
+#  ${${PROJECT_NAME}_EXPORTED_TARGETS} 
+#  ${catkin_EXPORTED_TARGETS} 
+#)
 
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
@@ -148,10 +153,18 @@ add_executable(cone_detector_node
   src/cone_detector.cpp
 )
 
-add_dependencies(cone_detector_node ${PROJECT_NAME}_generate_messages_cpp)
+add_dependencies(
+  cone_detector_node 
+  victoria_perception_generate_messages_cpp
+)
 
 add_executable(publish_image_node
   src/publish_image_node.cpp
+)
+
+add_dependencies(
+  publish_image_node 
+  victoria_perception_generate_messages_cpp
 )
 
 ## Rename C++ executable without prefix
