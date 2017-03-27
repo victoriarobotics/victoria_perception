@@ -13,6 +13,7 @@
   <buildtool_depend>catkin</buildtool_depend>
   <build_depend>camera_info_manager</build_depend>
   <build_depend>dynamic_reconfigure</build_depend>
+  <build_depend>roslaunch</build_depend>
   <depend>cv_bridge</depend>
   <depend>image_transport</depend>
   <depend>message_generation</depend>
@@ -21,6 +22,7 @@
   <depend>rospy</depend>
   <depend>sensor_msgs</depend>
   <depend>std_msgs</depend>
+  <exec_depend>topic_tools</exec_depend>
 
   <!-- The export tag contains other, unspecified, tags -->
   <export>

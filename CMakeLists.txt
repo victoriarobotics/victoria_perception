@@ -14,6 +14,7 @@ find_package(catkin REQUIRED COMPONENTS
   cv_bridge
   image_transport
   message_generation
+  roslaunch
   roscpp
   rospy
   sensor_msgs
@@ -189,6 +190,8 @@ target_link_libraries(
   publish_image_node
   ${catkin_LIBRARIES}
 )
+
+roslaunch_add_file_check(launch)
 
 #############
 ## Install ##
