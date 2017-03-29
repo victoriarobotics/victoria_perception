@@ -1,5 +1,6 @@
 <launch>
   
   <node pkg="topic_tools" type="relay" name="android_image_pub" args="/camera/color/image_raw/compressed /compressed_image"/>
+  <node pkg="topic_tools" type="relay" name="android_image_pub_compressed" args="/camera/color/image_raw/compressed /compressed_image/compressed"/>
 
 </launch>
