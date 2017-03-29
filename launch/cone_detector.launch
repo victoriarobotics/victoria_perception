@@ -22,7 +22,7 @@
   <arg name="low_contour_area" default="500" doc="Minimum contour area in square pixels" />
   <arg name="high_contour_area" default="180000" doc="Maximum contour area in square pixels" />
 
-  <node pkg="victoria_perception" name="cone_detector" type="cone_detector_node" respawn="false" output="screen" launch-prefix="$(arg launchPrefix)" >
+  <node pkg="victoria_perception" name="cone_detector" type="cone_detector_node" respawn="true" output="screen" launch-prefix="$(arg launchPrefix)" >
     <param name="camera_name" value="$(arg camera_name)" type="str" />
     <param name="do_erode_dilate" value="$(arg do_erode_dilate)" type="bool" />
     <param name="fps" value="$(arg fps)" type="int" />
