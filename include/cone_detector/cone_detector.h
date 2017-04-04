@@ -22,8 +22,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
 // OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef __CONE_DETECTOR
-#define __CONE_DETECTOR
+#ifndef __VICTORIA_PERCEPTION_CONE_DETECTOR
+#define __VICTORIA_PERCEPTION_CONE_DETECTOR
 #include <ros/ros.h>
 #include <ros/console.h>
 
@@ -31,9 +31,12 @@
 #include <dynamic_reconfigure/server.h>
 #include <image_transport/image_transport.h>
 #include "opencv2/core/core.hpp"
+#include <opencv2/imgproc/imgproc.hpp>
+#include <opencv2/highgui/highgui.hpp>
 #include <string>
 
 #include "victoria_perception/AnnotateDetectorImage.h"
+#include "victoria_perception/ConeDetectorConfig.h"
 
 
 using namespace std;
@@ -41,6 +44,11 @@ using namespace cv;
 
 class ConeDetector {
 private:
+	// Statics.
+	static const int g_font_face = FONT_HERSHEY_SIMPLEX;
+	static const double g_font_scale = 0.75;
+	static const int g_font_line_thickness = 2;
+
 	// Detector products.
 	int image_height_;
 	int image_width_;
@@ -93,9 +101,6 @@ private:
 	// Image will be resized to this y (rows) size.
 	int resize_y_;
 
-	// Parameter-settable to show X-windows debugging windows.
-	bool show_debug_windows_;
-
 	// Parameter-settable to show times taken for interesting steps in object recognition.
 	bool show_step_times_;
 
@@ -117,8 +122,14 @@ private:
 	Scalar ul_color_;
 	string ur_annotation_;
 	Scalar ur_color_;
+
 	bool annotateCb(victoria_perception::AnnotateDetectorImage::Request &request,
 			victoria_perception::AnnotateDetectorImage::Response &response);
+
+	// Dynamic reconfiguration.
+	dynamic_reconfigure::Server<victoria_perception::ConeDetectorConfig> dynamic_server_;
+	dynamic_reconfigure::Server<victoria_perception::ConeDetectorConfig>::CallbackType configCallbackType_;
+	void configCb(victoria_perception::ConeDetectorConfig &config, uint32_t level);
 
 	static bool strToBgr(string bgr_string, Scalar& out_color);
 	
@@ -127,6 +138,9 @@ private:
 
 	// Process one image topic message.
 	void imageTopicCb(const sensor_msgs::ImageConstPtr& msg);
+
+	// Put requested annotations in image.
+	void placeAnnotationsInImage(Mat annotation_image) ;
 
 	// singleton pattern.
 	ConeDetector();

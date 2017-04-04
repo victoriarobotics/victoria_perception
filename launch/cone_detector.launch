@@ -10,7 +10,6 @@
   <arg name="image_transport" default="compressed" doc="image transport (e.g., compressed) to be used" />
   <arg name="resize_x" default="320" doc="Image will be resized to this many columns" />
   <arg name="resize_y" default="240" doc="Image will be resized to this many rows" />
-  <arg name="show_debug_windows" default="true" doc="true => show debugging X-window panes" />
   <arg name="show_step_times" default="false" doc="true => show computation times for interesting parts of object recognition" />
 
   <arg name="low_hue_range" default="0" doc="Low range of hue" />
@@ -28,7 +27,6 @@
     <param name="fps" value="$(arg fps)" type="int" />
     <param name="image_topic_name" value="$(arg image_topic_name)" type="str" />
     <param name="image_transport" value="$(arg image_transport)" type="str" />
-    <param name="show_debug_windows" value="$(arg show_debug_windows)" type="bool" />
     <param name="show_step_times" value="$(arg show_step_times)" type="bool" />
     <param name="low_hue_range" value="$(arg low_hue_range)" type="int" />
     <param name="high_hue_range" value="$(arg high_hue_range)" type="int" />

@@ -12,6 +12,7 @@ SET(FLAGS "-g -ggdb -g3")
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
   cv_bridge
+  dynamic_reconfigure
   image_transport
   message_generation
   roslaunch
@@ -98,10 +99,9 @@ generate_messages(
 ##     and list every .cfg file to be processed
 
 ## Generate dynamic reconfigure parameters in the 'cfg' folder
-# generate_dynamic_reconfigure_options(
-#   cfg/DynReconf1.cfg
-#   cfg/DynReconf2.cfg
-# )
+generate_dynamic_reconfigure_options(
+  cfg/cone_detector.cfg
+)
 
 ###################################
 ## catkin specific configuration ##
@@ -141,9 +141,10 @@ include_directories(
 ## as an example, code may need to be generated before libraries
 ## either from message generation or dynamic reconfigure
 #add_dependencies(
-#  ${PROJECT_NAME} 
+#  cone_detector_node
 #  ${${PROJECT_NAME}_EXPORTED_TARGETS} 
 #  ${catkin_EXPORTED_TARGETS} 
+#  cone_detector_gencfg
 #)
 
 ## Declare a C++ executable
@@ -157,6 +158,7 @@ add_executable(cone_detector_node
 add_dependencies(
   cone_detector_node 
   victoria_perception_generate_messages_cpp
+  cone_detector_gencfg
 )
 
 add_executable(publish_image_node
