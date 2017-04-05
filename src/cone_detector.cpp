@@ -36,10 +36,6 @@
 #include <vector>
 #include "victoria_perception/ObjectDetector.h"
 
-using namespace boost;
-using namespace cv;
-using namespace std;
-
 void ConeDetector::configCb(victoria_perception::ConeDetectorConfig &config, uint32_t level) {
   ROS_INFO("Reconfigure Request: low_hue_: %d, high_hue_: %d"
            ", low_saturation_: %d, high_saturation_: %d"
@@ -59,17 +55,17 @@ void ConeDetector::configCb(victoria_perception::ConeDetectorConfig &config, uin
   high_contour_area_ = config.max_cone_area_;
 }
 
-bool ConeDetector::strToBgr(string bgr_string, Scalar& out_color) {
+bool ConeDetector::strToBgr(std::string bgr_string, cv::Scalar& out_color) {
     char* parse_end;
     long bgr = strtoll(bgr_string.c_str(), &parse_end, 16);
-    out_color = Scalar((bgr >> 16) & 0xFF, (bgr >> 8) & 0xFF, bgr & 0xFF);
+    out_color = cv::Scalar((bgr >> 16) & 0xFF, (bgr >> 8) & 0xFF, bgr & 0xFF);
     return true;
 }
 
 bool ConeDetector::annotateCb(victoria_perception::AnnotateDetectorImage::Request &request,
                               victoria_perception::AnnotateDetectorImage::Response &response) {
-    vector<string> fields;
-    split(fields, request.annotation, is_any_of(";"));
+    std::vector<std::string> fields;
+    boost::split(fields, request.annotation, boost::is_any_of(";"));
     if (fields.size() != 3) {
         response.result = "Invalid request format. Expected three semicolon-separated fields";
         return false;
@@ -112,7 +108,7 @@ bool ConeDetector::annotateCb(victoria_perception::AnnotateDetectorImage::Reques
     return true;
 }
 
-void ConeDetector::imageCb(Mat& original_image) {
+void ConeDetector::imageCb(cv::Mat& original_image) {
     clock_t start;
     double duration_resize = 0;         // Time taken for resize call.
     double duration_cvtColor = 0;       // Time taken for cvtColor call.
@@ -125,51 +121,53 @@ void ConeDetector::imageCb(Mat& original_image) {
     double duration_contoursPoly = 0;   // Time taken for contoursPoly call.
     double duration_find_largest = 0;   // Time taken to find the largest contour.
 
-    Mat img_HSV;
+    cv::Mat img_HSV;
     if (show_step_times_) start = clock();
-    Size resize_dimensions(resize_x_, resize_y_);
-    Mat image;
-    Mat annotation_image;
+    cv::Size resize_dimensions(resize_x_, resize_y_);
+    cv::Mat image;
+    cv::Mat annotation_image;
     if (show_step_times_) start = clock();
-    resize(original_image, image, resize_dimensions);
+    cv::resize(original_image, image, resize_dimensions);
     if (show_step_times_) duration_resize = ( std::clock() - start ) / (double)CLOCKS_PER_SEC;
 
-    cvtColor(image, img_HSV, CV_BGR2HSV); // Convert the captured frame from BGR to HSV
+    cv::cvtColor(image, img_HSV, CV_BGR2HSV); // Convert the captured frame from BGR to HSV
     if (show_step_times_) duration_cvtColor = ( std::clock() - start ) / (double)CLOCKS_PER_SEC;
 
 
-    Mat imgThresholded;
+    cv::Mat imgThresholded;
     if (show_step_times_) start = clock();
-    inRange(img_HSV, Scalar(low_hue_range_, low_saturation_range_, low_value_range_), Scalar(high_hue_range_, high_saturation_range_, high_value_range_), imgThresholded); //Threshold the image
+    cv::inRange(img_HSV, 
+                cv::Scalar(low_hue_range_, low_saturation_range_, low_value_range_), 
+                cv::Scalar(high_hue_range_, high_saturation_range_, high_value_range_), imgThresholded); //Threshold the image
     if (show_step_times_) duration_inRange = ( std::clock() - start ) / (double)CLOCKS_PER_SEC;
 
     if (do_erode_dilate_) {
         if (show_step_times_) start = clock();
         // Remove small objects from the background.
-        erode(imgThresholded, imgThresholded, getStructuringElement(MORPH_ELLIPSE, Size(3, 3)));
-        dilate(imgThresholded, imgThresholded, getStructuringElement(MORPH_ELLIPSE, Size(3, 3)));
+        cv::erode(imgThresholded, imgThresholded, getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(3, 3)));
+        cv::dilate(imgThresholded, imgThresholded, getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(3, 3)));
         if (show_step_times_) duration_erode_dilate_ = ( std::clock() - start ) / (double)CLOCKS_PER_SEC;
     }
 
-    vector<vector<Point> > contours;
-    vector<Vec4i> hierarchy;
+    std::vector<std::vector<cv::Point> > contours;
+    std::vector<cv::Vec4i> hierarchy;
     double contourSize;
-    Mat tempImage;
+    cv::Mat tempImage;
 
     if (show_step_times_) start = clock();
     imgThresholded.copyTo(tempImage);
     if (show_step_times_) duration_copyTo = ( std::clock() - start ) / (double)CLOCKS_PER_SEC;
 
     if (show_step_times_) start = clock();
-    findContours(tempImage, contours, hierarchy, CV_RETR_CCOMP, CV_CHAIN_APPROX_SIMPLE);
+    cv::findContours(tempImage, contours, hierarchy, CV_RETR_CCOMP, CV_CHAIN_APPROX_SIMPLE);
     if (show_step_times_) duration_findContours = ( std::clock() - start ) / (double)CLOCKS_PER_SEC;
 
     if (show_step_times_) start = clock();
-    vector<Rect> boundRect( contours.size() );
-    vector<vector<Point> > contours_poly( contours.size() );
+    std::vector<cv::Rect> boundRect( contours.size() );
+    std::vector<std::vector<cv::Point> > contours_poly( contours.size() );
     if (show_step_times_) duration_contoursPoly = ( std::clock() - start ) / (double)CLOCKS_PER_SEC;
 
-    Point2f center;
+    cv::Point2f center;
     //ROS_INFO("Found %ld contours", contours.size());
     float radius;
 
@@ -180,7 +178,7 @@ void ConeDetector::imageCb(Mat& original_image) {
         size_t max_blob_index = -1;
         int max_blob_size = 0;
         for (size_t i = 0; i < contours.size(); i++) {
-            contourSize = contourArea(contours[i]);
+            contourSize = cv::contourArea(contours[i]);
             if ((contourSize > max_blob_size) && (contourSize >= low_contour_area_) && (contourSize <= high_contour_area_)) {
                 max_blob_index = i;
                 max_blob_size = contourSize;
@@ -188,9 +186,9 @@ void ConeDetector::imageCb(Mat& original_image) {
         }
 
         if (max_blob_index != -1) {
-            approxPolyDP( Mat(contours[max_blob_index]), contours_poly[max_blob_index], 3, true );
-            //boundRect[max_blob_index] = boundingRect( Mat(contours_poly[max_blob_index]) );
-            minEnclosingCircle( (Mat) contours_poly[max_blob_index], center, radius );
+            approxPolyDP(cv::Mat(contours[max_blob_index]), contours_poly[max_blob_index], 3, true);
+            //boundRect[max_blob_index] = boundingRect(cv::Mat(contours_poly[max_blob_index]));
+            minEnclosingCircle((cv::Mat) contours_poly[max_blob_index], center, radius);
 
             object_x_ = center.x;
             object_y_ = center.y;
@@ -200,26 +198,25 @@ void ConeDetector::imageCb(Mat& original_image) {
             object_detected_ = true;
             object_area_ = max_blob_size;
 
-            Scalar color = Scalar(0, 0, 255);
-            Scalar non_primary_color = Scalar(0, 255, 255);
+            cv::Scalar color = cv::Scalar(0, 0, 255);
+            cv::Scalar non_primary_color = cv::Scalar(0, 255, 255);
             circle(image, center, (int)radius, color, 4, 8, 0 );
             for (size_t i = 0; i < contours.size(); i++) {
                 if (i == max_blob_index) continue;
-                approxPolyDP( Mat(contours[i]), contours_poly[i], 3, true );
-                //boundRect[i] = boundingRect( Mat(contours_poly[i]) );
+                cv::approxPolyDP(cv::Mat(contours[i]), contours_poly[i], 3, true );
                 float radius;
-                Point2f obj_center;
-                minEnclosingCircle( (Mat) contours_poly[i], obj_center, radius );
-                circle(image, obj_center, (int) radius, non_primary_color, 1, 8, 0);
+                cv::Point2f obj_center;
+                minEnclosingCircle((cv::Mat) contours_poly[i], obj_center, radius );
+                cv::circle(image, obj_center, (int) radius, non_primary_color, 1, 8, 0);
             }
 
-            resize(image, annotation_image, Size(640, 480));
-            Scalar info_color;
+            cv::resize(image, annotation_image, cv::Size(640, 480));
+            cv::Scalar info_color;
             bool info_color_ok = strToBgr("2222FF", info_color);
-            stringstream info_msg;
+            std::stringstream info_msg;
             info_msg << "@" << object_x_ << "," << object_y_ << "=" << object_area_;
-            putText(annotation_image, info_msg.str(), cvPoint(4, 42), g_font_face, g_font_scale, info_color, g_font_line_thickness, 8, false);
-            stringstream topic_msg;
+            cv::putText(annotation_image, info_msg.str(), cvPoint(4, 42), g_font_face, g_font_scale, info_color, g_font_line_thickness, 8, false);
+            std::stringstream topic_msg;
             topic_msg << "ConeDetector:Found;X:" << object_x_
                 << ";Y:" << object_y_
                 << ";AREA:" << max_blob_size
@@ -230,8 +227,8 @@ void ConeDetector::imageCb(Mat& original_image) {
             message.data = topic_msg.str();
             cone_found_pub_.publish(message);
         } else {
-            resize(image, annotation_image, Size(640, 480));
-            stringstream not_found_msg;
+            cv::resize(image, annotation_image, cv::Size(640, 480));
+            std::stringstream not_found_msg;
             not_found_msg << "ConeDetector:NotFound;X:0;Y:0;AREA:0;I:0;ROWS:"
                 << image_height_
                 << ";COLS:" << image_width_;
@@ -247,11 +244,11 @@ void ConeDetector::imageCb(Mat& original_image) {
 
         if (show_step_times_) duration_find_largest = ( std::clock() - start ) / (double)CLOCKS_PER_SEC;
     } else {
-        resize(image, annotation_image, Size(640, 480));
+        cv::resize(image, annotation_image, cv::Size(640, 480));
         placeAnnotationsInImage(annotation_image);
         sensor_msgs::ImagePtr annotated_image_msg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", annotation_image).toImageMsg();
         image_pub_annotated_.publish(annotated_image_msg);
-        stringstream not_found_msg;
+        std::stringstream not_found_msg;
         not_found_msg << "ConeDetector:NotFound;X:0;Y:0;AREA:0;I:0;ROWS:"
             << image_height_
             << ";COLS:" << image_width_;
@@ -282,24 +279,24 @@ void ConeDetector::imageCb(Mat& original_image) {
                                        duration_imshow,
                                        duration_copyTo,
                                        duration_findContours, duration_contoursPoly);
-    waitKey(10);
+    cv::waitKey(10);
 }
 
-void ConeDetector::placeAnnotationsInImage(Mat annotation_image) {
+void ConeDetector::placeAnnotationsInImage(cv::Mat annotation_image) {
     if (ll_annotation_.length() > 0) {
-        putText(annotation_image, ll_annotation_, cvPoint(4, annotation_image.rows - 10), g_font_face, g_font_scale, ll_color_, g_font_line_thickness, 8, false);
+        cv::putText(annotation_image, ll_annotation_, cvPoint(4, annotation_image.rows - 10), g_font_face, g_font_scale, ll_color_, g_font_line_thickness, 8, false);
     }
 
     if (lr_annotation_.length() > 0) {
-        putText(annotation_image, lr_annotation_, cvPoint(annotation_image.cols / 2 + 4, annotation_image.rows - 10), g_font_face, g_font_scale, lr_color_, g_font_line_thickness, 8, false);
+        cv::putText(annotation_image, lr_annotation_, cvPoint(annotation_image.cols / 2 + 4, annotation_image.rows - 10), g_font_face, g_font_scale, lr_color_, g_font_line_thickness, 8, false);
     }
 
     if (ul_annotation_.length() > 0) {
-        putText(annotation_image, ul_annotation_, cvPoint(4, 20), g_font_face, g_font_scale, ul_color_, g_font_line_thickness, 8, false);
+        cv::putText(annotation_image, ul_annotation_, cvPoint(4, 20), g_font_face, g_font_scale, ul_color_, g_font_line_thickness, 8, false);
     }
 
     if (ur_annotation_.length() > 0) {
-        putText(annotation_image, ur_annotation_, cvPoint(annotation_image.cols / 2 + 4, 20), g_font_face, g_font_scale, ur_color_, g_font_line_thickness, 8, false);
+        cv::putText(annotation_image, ur_annotation_, cvPoint(annotation_image.cols / 2 + 4, 20), g_font_face, g_font_scale, ur_color_, g_font_line_thickness, 8, false);
     }
 }
 

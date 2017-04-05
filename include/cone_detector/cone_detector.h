@@ -39,13 +39,10 @@
 #include "victoria_perception/ConeDetectorConfig.h"
 
 
-using namespace std;
-using namespace cv;
-
 class ConeDetector {
 private:
 	// Statics.
-	static const int g_font_face = FONT_HERSHEY_SIMPLEX;
+	static const int g_font_face = cv::FONT_HERSHEY_SIMPLEX;
 	static const double g_font_scale = 0.75;
 	static const int g_font_line_thickness = 2;
 
@@ -78,7 +75,7 @@ private:
 	// End values for the sample thresholding operation.
 
 	// Name of camera, to get camera properties.
-	string camera_name_;
+	std::string camera_name_;
 
 	// Publish annotated image.
 	image_transport::Publisher image_pub_annotated_;
@@ -90,7 +87,7 @@ private:
 	image_transport::Subscriber image_sub_;
 
 	// Topic publishing the image that might contain a traffic cone.
-	string image_topic_name_;
+	std::string image_topic_name_;
 
 	// OpenCV image transport.
 	image_transport::ImageTransport it_;
@@ -114,14 +111,14 @@ private:
 
 	// Process service call.
 	ros::ServiceServer annotateService;
-	string ll_annotation_;
-	Scalar ll_color_;
-	string lr_annotation_;
-	Scalar lr_color_;
-	string ul_annotation_;
-	Scalar ul_color_;
-	string ur_annotation_;
-	Scalar ur_color_;
+	std::string ll_annotation_;
+	cv::Scalar ll_color_;
+	std::string lr_annotation_;
+	cv::Scalar lr_color_;
+	std::string ul_annotation_;
+	cv::Scalar ul_color_;
+	std::string ur_annotation_;
+	cv::Scalar ur_color_;
 
 	bool annotateCb(victoria_perception::AnnotateDetectorImage::Request &request,
 			victoria_perception::AnnotateDetectorImage::Response &response);
@@ -131,16 +128,17 @@ private:
 	dynamic_reconfigure::Server<victoria_perception::ConeDetectorConfig>::CallbackType configCallbackType_;
 	void configCb(victoria_perception::ConeDetectorConfig &config, uint32_t level);
 
-	static bool strToBgr(string bgr_string, Scalar& out_color);
+	// Convert a 6-digit hexadecimal string into a blue-green-red color.
+	static bool strToBgr(std::string bgr_string, cv::Scalar& out_color);
 	
 	// Process one image.
-	void imageCb(Mat& image);
+	void imageCb(cv::Mat& image);
 
 	// Process one image topic message.
 	void imageTopicCb(const sensor_msgs::ImageConstPtr& msg);
 
 	// Put requested annotations in image.
-	void placeAnnotationsInImage(Mat annotation_image) ;
+	void placeAnnotationsInImage(cv::Mat annotation_image) ;
 
 	// singleton pattern.
 	ConeDetector();
@@ -153,7 +151,7 @@ public:
 
 	int imageHeight() { return image_height_; }
 	int imageWidth() { return image_width_; }
-	int objectArea() { return object_area_; }
+	int objectArea() { return object_area_; }	// Square pixel area of detected object.
 	bool objectDetected() { return object_detected_; }
 	int objectX() { return object_x_; }
 	int objectY() { return object_y_; }
