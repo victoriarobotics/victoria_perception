@@ -157,4 +157,4 @@ public:
 	int objectY() { return object_y_; }
 };
 
-#endif
+#endif  // __VICTORIA_PERCEPTION_CONE_DETECTOR
