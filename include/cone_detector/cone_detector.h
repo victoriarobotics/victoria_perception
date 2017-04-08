@@ -43,7 +43,7 @@ class ConeDetector {
 private:
 	// Statics.
 	static const int g_font_face = cv::FONT_HERSHEY_SIMPLEX;
-	static const double g_font_scale = 0.75;
+	static const double g_font_scale;
 	static const int g_font_line_thickness = 2;
 
 	// Detector products.
@@ -57,9 +57,6 @@ private:
 	// ROS node handle.
 	ros::NodeHandle nh_;
 
-	// Do erode/dilate steps?
-	bool do_erode_dilate_;
-
 	// HSV Values and contour area range for the sample thresholding operation.
 	int low_hue_range_;
 	int high_hue_range_;
@@ -72,6 +69,9 @@ private:
 
 	int low_contour_area_;
 	int high_contour_area_;
+
+	float max_aspect_ratio_;
+	float poly_epsilon_;
 	// End values for the sample thresholding operation.
 
 	// Name of camera, to get camera properties.
@@ -131,6 +131,8 @@ private:
 	// Convert a 6-digit hexadecimal string into a blue-green-red color.
 	static bool strToBgr(std::string bgr_string, cv::Scalar& out_color);
 	
+	bool hullIsValid(std::vector<cv::Point>& hull);
+
 	// Process one image.
 	void imageCb(cv::Mat& image);
 
