@@ -1,8 +1,8 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(victoria_perception)
 
+set(CMAKE_BUILD_TYPE Debug)
 set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread" )
-SET(FLAGS "-g -ggdb -g3")
 
 ## Add support for C++11, supported in ROS Kinetic and newer
 add_definitions(-std=c++11)
@@ -68,6 +68,7 @@ add_message_files(
 add_service_files(
   FILES
   AnnotateDetectorImage.srv
+  CalibrateConeDetection.srv
 )
 
 ## Generate actions in the 'action' folder

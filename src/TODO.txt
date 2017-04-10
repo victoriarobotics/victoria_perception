@@ -1,0 +1,86 @@
+TODO
+RoboMagellanNode
+* Service to push any goal.
+
+ConeDetector
+* Kmeans service returns list of blobs of [HSV-value-range, centroid, pixel count]
+* Service to accept list of [HSV-value-range] to set filters
+* Solve jitter response
+* Record images if requested
+
+DiscoverCone
+* No longer accumulating yaw
+
+MoveFromCone goal
+* Implement
+
+MoveToCone goal
+* Strategy for when cone is lost--maybe recovery in SolveRoboMagellan goal or simple strategy in MoveToCone
+  and fuller recovery in SolveRoboMagellan. Maybe wait a bit. Maybe backup a bit. Fail if cone is small and
+  then is lost--may be tracking errant object.
+
+SeekToGps:
+* Do yaw adjustment based upon how far to goal distance, applying yaw gently
+* Rotate in shorter direction.
+
+* KMEANS in cone detector, via service, to pick up colors of cone.
+* Smooth out z movements in SeekToGps
+* Faster straight movement.
+* Capture threshold/annotated pictures to log
+
+SolveKmeans goal
+* Get Kmeans, find kmeans for central object in picture
+* Move around cone, continually finding new kmean
+* Set final set of kmeans filters
+
+SolveRoboMagellan
+* Bigger recovery from MoveToCone goal. Backup, come from different orientation/pose.
+* Send goals to MoveBase.
+	move_base/goal (move_base_msgs/MoveBaseActionGoal)
+		std_msgs/Header header
+		actionlib_msgs/GoalID goal_id
+			time stamp
+			string id
+		move_base_msgs/MoveBaseGoal goal
+			geometry_msgs/PoseStamped target_pose
+				std_msgs/Header header
+				geometry_msgs/Pose pose
+					geometry_msgs/Point position
+					geometry_msgs/Quaternion orientation
+	move_base/cancel (actionlib_msgs/GoalID)
+		time stamp
+		string id
+	move_base/feedback (move_base_msgs/MoveBaseActionFeedback)
+		std_msgs/Header header
+		actionlib_msgs/GoalStatus status
+			GoalID goal_id
+			uint8 status
+			uint8 PENDING         = 0   # The goal has yet to be processed by the action server
+			uint8 ACTIVE          = 1   # The goal is currently being processed by the action server
+			uint8 PREEMPTED       = 2   # The goal received a cancel request after it started executing
+			                            #   and has since completed its execution (Terminal State)
+			uint8 SUCCEEDED       = 3   # The goal was achieved successfully by the action server (Terminal State)
+			uint8 ABORTED         = 4   # The goal was aborted during execution by the action server due
+			                            #    to some failure (Terminal State)
+			uint8 REJECTED        = 5   # The goal was rejected by the action server without being processed,
+			                            #    because the goal was unattainable or invalid (Terminal State)
+			uint8 PREEMPTING      = 6   # The goal received a cancel request after it started executing
+			                            #    and has not yet completed execution
+			uint8 RECALLING       = 7   # The goal received a cancel request before it started executing,
+			                            #    but the action server has not yet confirmed that the goal is canceled
+			uint8 RECALLED        = 8   # The goal received a cancel request before it started executing
+			                            #    and was successfully cancelled (Terminal State)
+			uint8 LOST            = 9   # An action client can determine that a goal is LOST. This should not be
+			                            #    sent over the wire by an action server
+
+			#Allow for the user to associate a string with GoalStatus for debugging
+			string text
+		move_base_msgs/MoveBaseFeedback feedback
+			geometry_msgs/PoseStamped base_position
+	move_base/result (move_base_msgs/MoveBaseActionResult)
+		std_msgs/Header header
+		actionlib_msgs/GoalStatus status
+		move_base_msgs/MoveBaseResult result
+
+StrategyFn
+* set Singleton to virtual=0

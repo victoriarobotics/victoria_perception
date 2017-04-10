@@ -111,19 +111,156 @@ bool ConeDetector::annotateCb(victoria_perception::AnnotateDetectorImage::Reques
     return true;
 }
 
+void ConeDetector::kmeansImage(cv::Mat image) {
+    int height = image.rows;
+    int width = image.cols;
+    cv::Mat labels; // Maps each pixel in image to the result cluster index.
+    static const int cluster_count = 10; // This is arbitrary. I increased it until I got the results I wanted.
+    cv::TermCriteria criteria {cv::TermCriteria::COUNT, 100, 1};  // int type: count=> max iterations, int max count, double epsilon
+    cv::Mat centers;
+
+    // Convert data into shape required for KMEANS.
+    cv::Mat reshaped_image = image.reshape(1, image.cols * image.rows);
+    assert(reshaped_image.type() == CV_8UC1);
+    cv::Mat reshaped_image32f;
+    reshaped_image.convertTo(reshaped_image32f, CV_32FC1, 1.0 / 255.0);
+    assert(reshaped_image32f.type() == CV_32FC1);
+
+    // Do KMEANS analysis.
+    kmeans(reshaped_image32f,           // Floating-point matrix of input samples, one row per sample.
+           cluster_count,               // Number of clusters to split the set by.
+           labels,                      // Input/output integer array that stores the cluster indices for every sample.
+           criteria,                    // The algorithm termination criteria.
+           1,                           // Number of times the algorithm is executed using different initial labellings.
+           cv::KMEANS_RANDOM_CENTERS,   // Select random initial centers in each attempt.
+           centers);                    // Output matrix of the cluster centers, one row per each cluster center.
+
+    // Print out the number of cluster rows (a.k.a centers) and cluster columns (3--r, g, b).
+    std::cout << "centers: " << centers.rows << " " << centers.cols << std::endl; //#####
+    assert(labels.type() == CV_32SC1);
+    assert(centers.type() == CV_32FC1);
+
+    // Convert centers to colors.
+    cv::Mat centers_u8;
+    centers.convertTo(centers_u8, CV_8UC1, 255.0); // Convert the original centers to an array of clusters, scaled from [0..1) => [0..255].
+    cv::Mat centers_u8c3 = centers_u8.reshape(3);   // Convert to 3 columns (R, G, B).
+
+    // Build a histogram of how many pixels occur for each cluster.
+    cv::Mat cluster_histogram(centers.rows, 1, CV_32S, cv::Scalar(0));
+    cv::MatConstIterator_<int> label_first = labels.begin<int>();
+    cv::MatConstIterator_<int> label_last = labels.end<int>();
+    while (label_first != label_last) {
+        cluster_histogram.at<int>(*label_first, 0) += 1;
+        label_first++;
+    }
+
+    // Pick up HSV of center point.
+    int center_point = (height / 2 * width) + (width / 2);
+    int center_cluster_index = labels.at<int>(center_point);
+    cv::Vec3b center_bgr = centers_u8.at<cv::Vec3b>(center_cluster_index);
+    cv::Mat bgr_point = image(cv::Rect(height / 2, width / 2, 1, 1));
+    cv::Mat hsv_point;
+    cv::cvtColor(bgr_point, hsv_point, cv::COLOR_BGR2HSV);
+    std::cout << "Center point index: " << center_point 
+              << ", cluster: " << center_cluster_index 
+              << ", color: " << center_bgr 
+              << ", hsv: " << hsv_point.at<cv::Vec3b>(0, 0) << std::endl; //#####
+
+    // Find the HSV range for all points in that cluster.
+    uchar min_hue = 179;
+    uchar max_hue = 0;
+    uchar min_saturation = 255;
+    uchar max_saturation = 0;
+    uchar min_value = 255;
+    uchar max_value = 0;
+    label_first = labels.begin<int>();
+    int pixels_in_cluster = 0;
+    int point_number = 0;
+    while (label_first != label_last) {
+        if (*label_first == center_cluster_index) {
+            // The point is part of the same cluster as the center point.
+            //cv::Vec3b point_bgr = reshaped_image.at<cv::Vec3b>(point_number);
+            cv::Mat bgr_mat = image(cv::Rect(point_number % width, point_number / width, 1, 1)); //reshaped_image(cv::Rect(0, point_number, 1, 1));
+            cv::Mat hsv_mat;
+            cv::cvtColor(bgr_mat, hsv_mat, cv::COLOR_BGR2HSV);
+            cv::Vec3b  point_hsv = hsv_mat.at<cv::Vec3b>(0, 0);
+            if (point_hsv[0] < min_hue) min_hue = point_hsv[0];
+            if (point_hsv[0] > max_hue) max_hue = point_hsv[0];
+            if (point_hsv[1] < min_saturation) min_saturation = point_hsv[1];
+            if (point_hsv[1] > max_saturation) max_saturation = point_hsv[1];
+            if (point_hsv[2] < min_value) min_value = point_hsv[2];
+            if (point_hsv[2] > max_value) max_value = point_hsv[2];
+            image.at<cv::Vec3b>(cv::Point(point_number % width, point_number / width)) = cv::Vec3b(0, 0, 0);
+            pixels_in_cluster++;
+        }
+
+        point_number++;
+        label_first++;
+    }
+
+    std::cout << "There were " << pixels_in_cluster << " pixels in the cluster and the new ranges are "
+              << "min_hue: " << (int) min_hue << ", max_hue: " << (int) max_hue
+              << ", min_saturation: " << (int) min_saturation << ", max_saturation: " << (int) max_saturation
+              << ", min_value: " << (int) min_value << ", max_value: " << (int) max_value
+              << std::endl;
+
+    cv::namedWindow("KMEANS_annotated", cv::WINDOW_AUTOSIZE);
+    cv::imshow("KMEANS_annotated", image);
+    cv::waitKey(20);
+
+    // Sort the histogram, descending.
+    cv::Mat histSortIdx;
+    cv::sortIdx(cluster_histogram, histSortIdx, cv::SORT_EVERY_COLUMN + cv::SORT_DESCENDING);
+    std::cout << "cluster_histogram..." << std::endl << cluster_histogram << std::endl; //#####
+
+    // Print out the sort index of each cluster.
+    std::cout << "histSortIdx..." << std::endl << histSortIdx << std::endl; //#####
+
+    // Print out the number of label rows (i.e., number of pixels) and label columns (there is only one).
+    std::cout << "labels: " << labels.rows << " " << labels.cols << std::endl; //#####
+
+    for (int i = 0; i < histSortIdx.rows; i++) {
+        int sx = histSortIdx.at<int>(i);
+        cv::Point2f p = centers.at<cv::Point2f>(sx);
+        cv::Vec3b q = centers_u8.at<cv::Vec3b>(i);
+        std::cout << "sorted centers[sort index:" << i << " / cluster index:" << sx << "] histogram count: " << cluster_histogram.at<int>(sx) << ", point: " << p 
+                  << ", color: " << q << std::endl; //#####
+    }
+}
+
+bool ConeDetector::calibrateConeDetectionCb(victoria_perception::CalibrateConeDetection::Request &request,
+                                            victoria_perception::CalibrateConeDetection::Response &response) {
+    if (last_image_count_ <= 0) {
+        response.result = "No images received yet";
+        return false;
+    }
+
+    kmeansImage(last_image_);
+    response.result = "Calibrated";
+    return true;
+}
+
 bool ConeDetector::hullIsValid(std::vector<cv::Point>& hull) {
+    // Find the bounding rectangle so we can easily determine hull points which
+    // are above vs. below the horizontal centerline.
     cv::Rect bounding_rect = cv::boundingRect(cv::Mat(hull));
-    //float aspect_ratio = 1.0 * bounding_rect.width / bounding_rect.height;
-    float y_center = bounding_rect.y + (bounding_rect.height / 2.0);
+
+    float y_center = bounding_rect.y + (bounding_rect.height / 2.0); // The height of the horizontal centerline.
+
+    // Computer the upper/lower left/right x-coordinates of the hull. Like a bounding box only it's a 
+    // tight fit to the hull
     int top_left_x = 10000;
     int top_right_x = -10000;
     int bottom_left_x = 10000;
     int bottom_right_x = -10000;
-    int min_y = 10000;
+    int min_y = 10000;  // And while we're looking at point hull points, compute the top and bottom y-positions in the hull.
     int max_y = -1000;
     for (cv::Point point : hull) {
+        // Compute the topmost and bottommost y-coordinates in the hull.
         if (point.y < min_y) min_y = point.y;
         if (point.y > max_y) max_y = point.y;
+
+        // Computer the upper/lower left/right x-coordinates in the hull.
         if (point.y < y_center) {
             if (point.x < top_left_x) top_left_x = point.x;
             if (point.x > top_right_x) top_right_x = point.x;
@@ -133,167 +270,139 @@ bool ConeDetector::hullIsValid(std::vector<cv::Point>& hull) {
         }
     }
 
+    // We're looking for a trapezoid, so compute the length of the top width
+    // and bottom width using the upper/lower left/right x-coordinates from above.
     int length_top = top_right_x - top_left_x;
     int length_bottom = bottom_right_x - bottom_left_x;
+
+    // We will also want to compute the aspect ration. For the height
+    // from the topmost and bottommost points from above and for the
+    // width we use the average of the length_top and length_bottom from above.
     int height = max_y - min_y;
     if (height == 0) height = 1;
     float aspect_ratio = ((length_top + length_bottom) / 2.0) / height; 
 
     std::stringstream ss;
-    ss << "[hullIsValid]  tlx: " << top_left_x << ", trx: " << top_right_x << ", blx: " << bottom_left_x << ", brx" << bottom_right_x;
-    ss << ", tlen: " << length_top << ", blen: " << length_bottom;
-    ss << ", min_y: " << min_y << ", max_y: " << max_y << ", height: " << height;
-    ss << ", pt asp ratio: " << aspect_ratio;
-    double tl_ratio = (length_top / (1.0 * (length_bottom != 0 ? length_bottom : 1)));
-    ss << ", tl_ratio: " << std::setprecision(4) << tl_ratio;
+    ss << "[ConeDetector::hullIsValid]";
     if (aspect_ratio > max_aspect_ratio_) {
-        ss << ", REJECT, aspect_ration greater than: " << std::setprecision(4) << max_aspect_ratio_;
-        ROS_INFO("%s", ss.str().c_str());
+        ss << " REJECT, aspect_ratio: " << std::setprecision(4) << aspect_ratio << " greater than max: " << std::setprecision(4) << max_aspect_ratio_;
+        ROS_DEBUG_NAMED("cone_detector", "%s", ss.str().c_str());
         return false;
     }
 
-   if (length_top < 0) ss << ", REJECT bad tlen";
-    if (length_bottom <= 0) ss << ", REJECT bad blen";
-    if (length_top >= (0.75 * length_bottom)) ss << ", REJECT bad shape";
-    ROS_INFO("%s", ss.str().c_str());
-    bool result = (length_top >= 0) &&
-                  (length_bottom > 0) &&
+    bool result = (length_bottom > 0) &&
                   (length_top < (0.75 * length_bottom));
+    if (result) {
+        ss << " ACCEPTED";
+    } else {
+        if (length_bottom <= 0) ss << "REJECT zero bottom length. ";
+        if (length_top >= (0.75 * length_bottom)) ss << "REJECT top longer that 0.75 of bottom. ";
+    }
+    
+    ROS_DEBUG_NAMED("cone_detector", "%s", ss.str().c_str());
     return result;
 }
 
 void ConeDetector::imageCb(cv::Mat& original_image) {
-    static const cv::Scalar color = cv::Scalar(0, 0, 255);
-    static const cv::Scalar non_primary_color = cv::Scalar(0, 255, 255);
+    original_image.copyTo(last_image_); // Save so kmeans has an image to work on.
+    last_image_count_++;    // Count so kmeans knows that at least one image has been received.
+    static const cv::Scalar color = cv::Scalar(0, 0, 255);  // Color of annotated primary circle.
+    static const cv::Scalar non_primary_color = cv::Scalar(0, 255, 255);    // Color of annotated non-primary circles.
 
-    clock_t start;
-    double duration_resize = 0;         // Time taken for resize call.
-    double duration_cvtColor = 0;       // Time taken for cvtColor call.
-    double duration_erode_dilate_ = 0;  // Time taken for erode/dilate calls.
-    double duration_inRange = 0;        // Time taken for inRange call.
-    double duration_copyTo = 0;         // Time taken for copyTo operation.
-    double d_theta = 0;    // Time taken to find largets blob.
-    double duration_imshow = 0;         // Time taken for imshow calls
-    double duration_findContours = 0;   // Time taken for findContours call.
-    double duration_find_largest = 0;   // Time taken to find the largest contour.
-
-    cv::Mat img_HSV;
-    if (show_step_times_) start = clock();
-    cv::Size resize_dimensions(resize_x_, resize_y_);
+    cv::Mat img_HSV;    // We'll work in HSV space for color detction.
+    cv::Size resize_dimensions(resize_x_, resize_y_);   // Down sample size for faster computation.
     cv::Mat image;
     cv::Mat annotation_image;
-    if (show_step_times_) start = clock();
+
+    // Downsample the image for a faster computation.
     cv::resize(original_image, image, resize_dimensions);
-    if (show_step_times_) duration_resize = (std::clock() - start) / (double) CLOCKS_PER_SEC;
 
+    // Convert image to HSV space for easier color detection.
     cv::cvtColor(image, img_HSV, CV_BGR2HSV); // Convert the captured frame from BGR to HSV
-    if (show_step_times_) duration_cvtColor = (std::clock() - start) / (double)CLOCKS_PER_SEC;
 
 
+    // Using color detection, convert interesting areas in picture to white and uninteresting areas to black.
     cv::Mat imgThresholded;
-    if (show_step_times_) start = clock();
     cv::inRange(img_HSV, 
                 cv::Scalar(low_hue_range_, low_saturation_range_, low_value_range_), 
-                cv::Scalar(high_hue_range_, high_saturation_range_, high_value_range_), imgThresholded); //Threshold the image
-    if (show_step_times_) duration_inRange = (std::clock() - start) / (double) CLOCKS_PER_SEC;
+                cv::Scalar(high_hue_range_, high_saturation_range_, high_value_range_), imgThresholded);
 
-    if (show_step_times_) start = clock();
     // Remove small objects from the background.
     cv::erode(imgThresholded, imgThresholded, getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(3, 3)));
     cv::dilate(imgThresholded, imgThresholded, getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(3, 3)));
     cv::GaussianBlur(imgThresholded, imgThresholded, cv::Size(5, 5), 0);
-    cv::Canny(imgThresholded, imgThresholded, 50, 150, 3);
-    if (show_step_times_) duration_erode_dilate_ = (std::clock() - start) / (double) CLOCKS_PER_SEC;
 
+    // Now convert white areas to a white outline.
+    cv::Canny(imgThresholded, imgThresholded, 50, 150, 3);
+
+    // Find polygons that are closed loops of white lines.
     std::vector<std::vector<cv::Point> > contours;
     std::vector<cv::Vec4i> hierarchy;
     double contourSize;
     cv::Mat tempImage;
 
-    if (show_step_times_) start = clock();
     imgThresholded.copyTo(tempImage);
-    if (show_step_times_) duration_copyTo = (std::clock() - start) / (double) CLOCKS_PER_SEC;
-
-    if (show_step_times_) start = clock();
     cv::findContours(tempImage, contours, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
-    if (show_step_times_) duration_findContours = (std::clock() - start) / (double) CLOCKS_PER_SEC;
 
-    std::vector<cv::Point> *best_cone = NULL;
+    std::vector<cv::Point> *some_polynomial = NULL;
 
-    if (show_step_times_) start = clock();
+    // Now find the best cone (if any) in the image.
     object_detected_ = false;
     if (!contours.empty()) {
-        // Find best blob.
         size_t best_blob_index = -1;
         int best_blob_size = 0;
 
-        //###std::vector<std::vector<cv::Point> > cones;
         for (size_t i = 0; i < contours.size(); i++) {
-            std::stringstream ss;
-            ss << "[imageCb] [" << i << "@" << contours[i][0].x << "x" << contours[i][0].y << "] dp: ";
             std::vector<cv::Point> dp;
+
+            // Simplify the contours into less-jagged polynomials.
             approxPolyDP(cv::Mat(contours[i]), dp, poly_epsilon_, true);
-            for (cv::Point p : dp) {
-                ss << p.x << "x" << p.y << " ";
-            }
+
+            // Filter out polynomials that are too small or too large to be an interesting cone.
             int contour_size = cv::contourArea(contours[i]);
             if ((contour_size >= low_contour_area_) && (contour_size <= high_contour_area_)) {
-                ss << " Good contour area: " << contour_size;
-                ss << ", at " << contours[i][0].x << "x" << contours[i][0].y << ", hull: ";
+                // Convert the polynomial into a convex hull (i.e., ignore any jagged areas that
+                // point inward).
                 std::vector<cv::Point> hull;
                 cv::convexHull(cv::Mat(dp), hull, false);
-                for (cv::Point p : hull) {
-                    ss << p.x << "x" << p.y << " ";
-                }
-                if ((hull.size() >= 3) && (hull.size() <= 10)) {
 
-                    bool ok = hullIsValid(hull);
+                // Filter out convex hulls that have too few points to be a triangle or too many
+                // points (too complex a shape) to be an interesting cone-shaped object.
+                if ((hull.size() >= 3) && (hull.size() <= 10)) {
+                    bool ok = hullIsValid(hull);    // Do further test on hull to see if it's a likely good cone.
                     if (ok) {
+                        // We've got a winner. Draw a line around the hull in the annotation image.
                         cv::polylines(image, hull, true, cv::Scalar(255, 0, 0), 1, 8, 0);
+
+                        // Capture information about the winner.
                         best_blob_index = i;
                         best_blob_size = contour_size;
-                        best_cone = &contours[i];
-                        ss << " GOOD blob_size: " << best_blob_size;
+                        some_polynomial = &contours[i];
                         break;
                     } else {
-                        ss << "REJECT invalid hull";
+                        // Not a good enough hull to be a cone candidate. Ignore it.
                     }
                 } else {
-                    ss << "REJECT hull size: " << hull.size() << " not in [3 .. 10]";
+                    // Hull has too few points to be a triangle or too many points (shape is too complex). Ignore it.
                 }
 
-                ROS_INFO("%s", ss.str().c_str());
             } else {
-                //ss << "REJECT contour_size: " << contour_size << " not in [" << low_contour_area_ << ", " << high_contour_area_ << "]";
-                // ROS_INFO("%s", ss.str().c_str());
+                // Contour area is too small or too large to be an interesting cone candidate. Ignore it.
             }
         }
 
 
         // TODO:
-        // MoveToCone  should ignore transient cone detects.
         // Capture all cones and select best one.
-        // +Go back to 640 scale.
-        // +No annotation if no cone detected--fix this
-        // +Remove divide by zero possibility.
-        // +Empty JPEG image errors.
-
-
+        
+        // Upscale the annotation image so that text annotations will be readable.
         cv::resize(image, annotation_image, cv::Size(640, 480));
-        //image.copyTo(annotation_image);
         if (best_blob_index != -1) {
+            // A good cone candidate was selected. Draw a circle around it in the annotation window.
             cv::Point2f center;
             float radius;
-            approxPolyDP(cv::Mat(contours[best_blob_index]), *best_cone, 3, true);
-            minEnclosingCircle((cv::Mat) *best_cone, center, radius);
-
-            object_x_ = center.x;
-            object_y_ = center.y;
-
-            image_width_ = image.cols;
-            image_height_ = image.rows;
-            object_detected_ = true;
-            object_area_ = best_blob_size;
+            approxPolyDP(cv::Mat(contours[best_blob_index]), *some_polynomial, 3, true);
+            minEnclosingCircle((cv::Mat) *some_polynomial, center, radius);
 
             int scale_factor_x = 640 / resize_x_;
             int scale_factor_y = 480 / resize_y_;
@@ -302,23 +411,35 @@ void ConeDetector::imageCb(cv::Mat& original_image) {
             scaled_center.y *= scale_factor_y;
 
             circle(annotation_image, scaled_center, (int) radius * scale_factor_x, color, 4, 8, 0 );
-            ROS_INFO("best index: %d, center: %dx%d, radius: %7.4f", (int) best_blob_index, (int) center.x, (int)center.y, radius);
+
+            // Draw a different circle around the other contours that were detected but rejected.
             for (size_t i = 0; i < contours.size(); i++) {
-                if (i == best_blob_index) continue;
-                cv::approxPolyDP(cv::Mat(contours[i]), *best_cone, 3, true );
+                if (i == best_blob_index) continue; // Ignore the contour that was accepted.
+                cv::approxPolyDP(cv::Mat(contours[i]), *some_polynomial, 3, true );
                 float radius;
                 cv::Point2f obj_center;
-                minEnclosingCircle((cv::Mat) *best_cone, obj_center, radius );
+                minEnclosingCircle((cv::Mat) *some_polynomial, obj_center, radius );
                 obj_center.x *= scale_factor_x;
                 obj_center.y *= scale_factor_y;
                 cv::circle(annotation_image, obj_center, (int) radius * scale_factor_x, non_primary_color, 1, 8, 0);
             }
 
+            // Capture cone info to be published.
+            object_x_ = center.x;
+            object_y_ = center.y;
+            image_width_ = image.cols;
+            image_height_ = image.rows;
+            object_detected_ = true;
+            object_area_ = best_blob_size;
+
+            // Annotate the upper left of the annotated image with the location and size of the detected cone.
             cv::Scalar info_color;
             bool info_color_ok = strToBgr("2222FF", info_color);
             std::stringstream info_msg;
             info_msg << "@" << object_x_ << "," << object_y_ << "=" << object_area_;
             cv::putText(annotation_image, info_msg.str(), cvPoint(4, 42), g_font_face, g_font_scale, info_color, g_font_line_thickness, 8, false);
+            
+            // Publish one version of the cone detector message.
             std::stringstream topic_msg;
             topic_msg << "ConeDetector:Found;X:" << object_x_
                 << ";Y:" << object_y_
@@ -330,7 +451,9 @@ void ConeDetector::imageCb(cv::Mat& original_image) {
             message.data = topic_msg.str();
             cone_found_pub_.publish(message);
         } else {
-            ROS_INFO("best_blob_index is -1");
+            ROS_DEBUG_NAMED("[cone_detector]", "[ConeDetector] No cone detected");
+            
+            // Publish one version of the cone detector message.
             std::stringstream not_found_msg;
             not_found_msg << "ConeDetector:NotFound;X:0;Y:0;AREA:0;I:0;ROWS:"
                 << image_height_
@@ -340,18 +463,21 @@ void ConeDetector::imageCb(cv::Mat& original_image) {
             cone_found_pub_.publish(message);
         }
 
-        placeAnnotationsInImage(annotation_image);
+        placeAnnotationsInImage(annotation_image);  // Put any user annotations in the annotated image.
 
+        // Emit the annotated image.
         sensor_msgs::ImagePtr annotated_image_msg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", annotation_image).toImageMsg();
         image_pub_annotated_.publish(annotated_image_msg);
-
-        if (show_step_times_) duration_find_largest = (std::clock() - start) / (double) CLOCKS_PER_SEC;
     } else {
-        ROS_INFO("[imageCb] no contours found");
+        ROS_DEBUG_NAMED("cone_detector", "[ConeDetector] no contours found");
         cv::resize(image, annotation_image, cv::Size(640, 480));
         placeAnnotationsInImage(annotation_image);
+
+        // Emit the annotated image.
         sensor_msgs::ImagePtr annotated_image_msg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", annotation_image).toImageMsg();
         image_pub_annotated_.publish(annotated_image_msg);
+
+        // Publish one version of the cone detector message.
         std::stringstream not_found_msg;
         not_found_msg << "ConeDetector:NotFound;X:0;Y:0;AREA:0;I:0;ROWS:"
             << image_height_
@@ -361,27 +487,9 @@ void ConeDetector::imageCb(cv::Mat& original_image) {
         cone_found_pub_.publish(message);
     }
 
-    if (show_step_times_) start = clock();
+    // Emit the thresholded image.
     sensor_msgs::ImagePtr thresholded_image = cv_bridge::CvImage(std_msgs::Header(), "mono8", imgThresholded).toImageMsg();
     image_pub_thresholded_.publish(thresholded_image);
-
-    duration_imshow = (std::clock() - start) / (double) CLOCKS_PER_SEC;
-    if (show_step_times_) ROS_INFO("durations resize: %7.5f, "
-                                   "cvtColor: %7.5f"
-                                   ", inRange: %7.5f"
-                                   ", erode/dilate: %7.5f"
-                                   ", findLargest: %7.5f"
-                                   ", showWindows: %7.5f"
-                                   ", copyTo: %7.5f"
-                                   ", findContours: %7.5f",
-                                   duration_resize,
-                                   duration_cvtColor,
-                                   duration_inRange,
-                                   duration_erode_dilate_,
-                                   duration_find_largest,
-                                   duration_imshow,
-                                   duration_copyTo,
-                                   duration_findContours);
     cv::waitKey(10);
 }
 
@@ -413,7 +521,7 @@ ConeDetector::ConeDetector() :
     high_value_range_(255),
     low_contour_area_(500),
     high_contour_area_(200000),
-    show_step_times_(false),
+    last_image_count_(0),
     ll_annotation_(""),
     ll_color_(255, 255, 255),
     lr_annotation_(""),
@@ -422,6 +530,7 @@ ConeDetector::ConeDetector() :
     poly_epsilon_(6.7),
     resize_x_(320),
     resize_y_(240),
+    show_step_times_(false),
     ul_annotation_(""),
     ul_color_(255, 255, 255),
     ur_annotation_(""),
@@ -474,6 +583,8 @@ ConeDetector::ConeDetector() :
      nh_ = ros::NodeHandle("~");
 
     annotateService = nh_.advertiseService("annotate_detector_image", &ConeDetector::annotateCb, this);
+    calibrateConeDetectionService = nh_.advertiseService("calibrate_cone_detection", &ConeDetector::calibrateConeDetectionCb, this);
+
     image_pub_annotated_ = it_.advertise("cone_detector/annotated_image", 1);
     image_pub_thresholded_ = it_.advertise("cone_detector/thresholded_image", 1);
     image_sub_ = it_.subscribe(image_topic_name_, 1, &ConeDetector::imageTopicCb, this);
