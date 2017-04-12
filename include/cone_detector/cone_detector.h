@@ -59,14 +59,23 @@ private:
 	ros::NodeHandle nh_;
 
 	// HSV Values and contour area range for the sample thresholding operation.
-	int low_hue_range_;
-	int high_hue_range_;
+	int alow_hue_range_;
+	int ahigh_hue_range_;
 
-	int low_saturation_range_;
-	int high_saturation_range_;
+	int alow_saturation_range_;
+	int ahigh_saturation_range_;
 
-	int low_value_range_;
-	int high_value_range_;
+	int alow_value_range_;
+	int ahigh_value_range_;
+
+	int blow_hue_range_;
+	int bhigh_hue_range_;
+
+	int blow_saturation_range_;
+	int bhigh_saturation_range_;
+
+	int blow_value_range_;
+	int bhigh_value_range_;
 
 	int low_contour_area_;
 	int high_contour_area_;

@@ -37,22 +37,34 @@
 #include "victoria_perception/ObjectDetector.h"
 
 void ConeDetector::configCb(victoria_perception::ConeDetectorConfig &config, uint32_t level) {
-    ROS_INFO("Reconfigure Request: low_hue_: %d, high_hue_: %d"
-             ", low_saturation_: %d, high_saturation_: %d"
-             ", low_value_: %d, high_value_: %d"
+    ROS_INFO("Reconfigure Request: alow_hue_: %d, ahigh_hue_: %d"
+             ", alow_saturation_: %d, ahigh_saturation_: %d"
+             ", alow_value_: %d, ahigh_value_: %d"
+             ", blow_hue_: %d, bhigh_hue_: %d"
+             ", blow_saturation_: %d, bhigh_saturation_: %d"
+             ", blow_value_: %d, bhigh_value_: %d"
              ", min_cone_area_: %d, max_cone_area_: %d"
              ", max_aspect_ratio_: %7.4f", 
-             config.low_hue_, config.high_hue_, 
-             config.low_saturation_, config.high_saturation_, 
-             config.low_value_, config.high_value_ ,
+             config.alow_hue_, config.ahigh_hue_, 
+             config.alow_saturation_, config.ahigh_saturation_, 
+             config.alow_value_, config.ahigh_value_ ,
+             config.blow_hue_, config.bhigh_hue_, 
+             config.blow_saturation_, config.bhigh_saturation_, 
+             config.blow_value_, config.bhigh_value_ ,
              config.min_cone_area_, config.max_cone_area_,
              config.max_aspect_ratio_);
-    low_hue_range_ = config.low_hue_;
-    high_hue_range_ = config.high_hue_;
-    low_saturation_range_ = config.low_saturation_;
-    high_saturation_range_ = config.high_saturation_;
-    low_value_range_ = config.low_value_;
-    high_value_range_ = config.high_value_;
+    alow_hue_range_ = config.alow_hue_;
+    ahigh_hue_range_ = config.ahigh_hue_;
+    alow_saturation_range_ = config.alow_saturation_;
+    ahigh_saturation_range_ = config.ahigh_saturation_;
+    alow_value_range_ = config.alow_value_;
+    ahigh_value_range_ = config.ahigh_value_;
+    blow_hue_range_ = config.blow_hue_;
+    bhigh_hue_range_ = config.bhigh_hue_;
+    bhigh_saturation_range_ = config.bhigh_saturation_;
+    blow_value_range_ = config.blow_value_;
+    bhigh_value_range_ = config.bhigh_value_;
+    blow_saturation_range_ = config.blow_saturation_;
     low_contour_area_ = config.min_cone_area_;
     high_contour_area_ = config.max_cone_area_;
     max_aspect_ratio_ = config.max_aspect_ratio_;
@@ -309,7 +321,7 @@ void ConeDetector::imageCb(cv::Mat& original_image) {
     static const cv::Scalar color = cv::Scalar(0, 0, 255);  // Color of annotated primary circle.
     static const cv::Scalar non_primary_color = cv::Scalar(0, 255, 255);    // Color of annotated non-primary circles.
 
-    cv::Mat img_HSV;    // We'll work in HSV space for color detction.
+    cv::Mat img_hsv;    // We'll work in HSV space for color detction.
     cv::Size resize_dimensions(resize_x_, resize_y_);   // Down sample size for faster computation.
     cv::Mat image;
     cv::Mat annotation_image;
@@ -318,22 +330,31 @@ void ConeDetector::imageCb(cv::Mat& original_image) {
     cv::resize(original_image, image, resize_dimensions);
 
     // Convert image to HSV space for easier color detection.
-    cv::cvtColor(image, img_HSV, CV_BGR2HSV); // Convert the captured frame from BGR to HSV
+    cv::cvtColor(image, img_hsv, CV_BGR2HSV); // Convert the captured frame from BGR to HSV
 
 
     // Using color detection, convert interesting areas in picture to white and uninteresting areas to black.
-    cv::Mat imgThresholded;
-    cv::inRange(img_HSV, 
-                cv::Scalar(low_hue_range_, low_saturation_range_, low_value_range_), 
-                cv::Scalar(high_hue_range_, high_saturation_range_, high_value_range_), imgThresholded);
+    cv::Mat a_img_thresholded;
+    cv::inRange(img_hsv, 
+                cv::Scalar(alow_hue_range_, alow_saturation_range_, alow_value_range_), 
+                cv::Scalar(ahigh_hue_range_, ahigh_saturation_range_, ahigh_value_range_), a_img_thresholded);
+    cv::Mat b_img_thresholded;
+    cv::inRange(img_hsv, 
+                cv::Scalar(blow_hue_range_, blow_saturation_range_, blow_value_range_), 
+                cv::Scalar(bhigh_hue_range_, bhigh_saturation_range_, bhigh_value_range_), b_img_thresholded);
+
+    // Merge the two filters
+    cv::Mat merged_img_thresholded;
+    cv::bitwise_or(a_img_thresholded, b_img_thresholded, merged_img_thresholded);
 
     // Remove small objects from the background.
-    cv::erode(imgThresholded, imgThresholded, getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(3, 3)));
-    cv::dilate(imgThresholded, imgThresholded, getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(3, 3)));
-    cv::GaussianBlur(imgThresholded, imgThresholded, cv::Size(5, 5), 0);
+    cv::erode(merged_img_thresholded, a_img_thresholded, getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(3, 3)));
+    cv::dilate(a_img_thresholded, a_img_thresholded, getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(3, 3)));
+    cv::GaussianBlur(a_img_thresholded, a_img_thresholded, cv::Size(5, 5), 0);
 
     // Now convert white areas to a white outline.
-    cv::Canny(imgThresholded, imgThresholded, 50, 150, 3);
+    cv::Canny(merged_img_thresholded, merged_img_thresholded, 50, 150, 3);
+
 
     // Find polygons that are closed loops of white lines.
     std::vector<std::vector<cv::Point> > contours;
@@ -341,7 +362,7 @@ void ConeDetector::imageCb(cv::Mat& original_image) {
     double contourSize;
     cv::Mat tempImage;
 
-    imgThresholded.copyTo(tempImage);
+    merged_img_thresholded.copyTo(tempImage);
     cv::findContours(tempImage, contours, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
 
     std::vector<cv::Point> *some_polynomial = NULL;
@@ -488,7 +509,7 @@ void ConeDetector::imageCb(cv::Mat& original_image) {
     }
 
     // Emit the thresholded image.
-    sensor_msgs::ImagePtr thresholded_image = cv_bridge::CvImage(std_msgs::Header(), "mono8", imgThresholded).toImageMsg();
+    sensor_msgs::ImagePtr thresholded_image = cv_bridge::CvImage(std_msgs::Header(), "mono8", merged_img_thresholded).toImageMsg();
     image_pub_thresholded_.publish(thresholded_image);
     cv::waitKey(10);
 }
@@ -513,12 +534,18 @@ void ConeDetector::placeAnnotationsInImage(cv::Mat annotation_image) {
 
 ConeDetector::ConeDetector() :
     it_(nh_),
-    low_hue_range_(0),
-    high_hue_range_(44),
-    low_saturation_range_(181),
-    high_saturation_range_(255),
-    low_value_range_(169),
-    high_value_range_(255),
+    alow_hue_range_(0),
+    ahigh_hue_range_(0),
+    alow_saturation_range_(0),
+    ahigh_saturation_range_(0),
+    alow_value_range_(0),
+    ahigh_value_range_(0),
+    blow_hue_range_(0),
+    bhigh_hue_range_(0),
+    blow_saturation_range_(0),
+    bhigh_saturation_range_(0),
+    blow_value_range_(0),
+    bhigh_value_range_(0),
     low_contour_area_(500),
     high_contour_area_(200000),
     last_image_count_(0),
@@ -545,12 +572,18 @@ ConeDetector::ConeDetector() :
     assert(ros::param::get("~poly_epsilon", poly_epsilon_));
     assert(ros::param::get("~show_step_times", show_step_times_));
 
-    assert(ros::param::get("~low_hue_range", low_hue_range_));
-    assert(ros::param::get("~high_hue_range", high_hue_range_));
-    assert(ros::param::get("~low_saturation_range", low_saturation_range_));
-    assert(ros::param::get("~high_saturation_range", high_saturation_range_));
-    assert(ros::param::get("~low_value_range", low_value_range_));
-    assert(ros::param::get("~high_value_range", high_value_range_));
+    assert(ros::param::get("~alow_hue_range", alow_hue_range_));
+    assert(ros::param::get("~ahigh_hue_range", ahigh_hue_range_));
+    assert(ros::param::get("~alow_saturation_range", alow_saturation_range_));
+    assert(ros::param::get("~ahigh_saturation_range", ahigh_saturation_range_));
+    assert(ros::param::get("~alow_value_range", alow_value_range_));
+    assert(ros::param::get("~ahigh_value_range", ahigh_value_range_));
+    assert(ros::param::get("~blow_hue_range", blow_hue_range_));
+    assert(ros::param::get("~bhigh_hue_range", bhigh_hue_range_));
+    assert(ros::param::get("~blow_saturation_range", blow_saturation_range_));
+    assert(ros::param::get("~bhigh_saturation_range", bhigh_saturation_range_));
+    assert(ros::param::get("~blow_value_range", blow_value_range_));
+    assert(ros::param::get("~bhigh_value_range", bhigh_value_range_));
     assert(ros::param::get("~low_contour_area", low_contour_area_));
     assert(ros::param::get("~high_contour_area", high_contour_area_));
 
@@ -560,21 +593,30 @@ ConeDetector::ConeDetector() :
     ROS_INFO("[ConeDetector] PARAM camera_name: %s", camera_name_.c_str());
     ROS_INFO("[ConeDetector] PARAM image_topic_name: %s", image_topic_name_.c_str());
     ROS_INFO("[ConeDetector] PARAM low_contour_area: %d, high_contour_area: %d", low_contour_area_, high_contour_area_);
-    ROS_INFO("[ConeDetector] PARAM low_hue_range: %d, high_hue_range: %d", low_hue_range_, high_hue_range_);
-    ROS_INFO("[ConeDetector] PARAM low_saturation_range: %d, high_saturation_range: %d, ", low_saturation_range_, high_saturation_range_);
-    ROS_INFO("[ConeDetector] PARAM low_value_range: %d, high_value_range: %d", low_value_range_, high_value_range_);
+    ROS_INFO("[ConeDetector] PARAM alow_hue_range: %d, ahigh_hue_range: %d", alow_hue_range_, ahigh_hue_range_);
+    ROS_INFO("[ConeDetector] PARAM alow_saturation_range: %d, ahigh_saturation_range: %d, ", alow_saturation_range_, ahigh_saturation_range_);
+    ROS_INFO("[ConeDetector] PARAM alow_value_range: %d, ahigh_value_range: %d", alow_value_range_, ahigh_value_range_);
+    ROS_INFO("[ConeDetector] PARAM blow_hue_range: %d, bhigh_hue_range: %d", blow_hue_range_, bhigh_hue_range_);
+    ROS_INFO("[ConeDetector] PARAM blow_saturation_range: %d, bhigh_saturation_range: %d, ", blow_saturation_range_, bhigh_saturation_range_);
+    ROS_INFO("[ConeDetector] PARAM ablow_value_range: %d, bhigh_value_range: %d", blow_value_range_, bhigh_value_range_);
     ROS_INFO("[ConeDetector] PARAM max_aspect_ratio: %7.4f", max_aspect_ratio_);
     ROS_INFO("[ConeDetector] PARAM poly_epsilon: %7.4f", poly_epsilon_);
     ROS_INFO("[ConeDetector] PARAM resize_x: %d, resize_y: %d", resize_x_, resize_y_);
     ROS_INFO("[ConeDetector] PARAM show_step_times: %s", show_step_times_ ? "TRUE" : "FALSE");
 
     victoria_perception::ConeDetectorConfig config;
-    config.low_hue_ = low_hue_range_;
-    config.high_hue_ = high_hue_range_;
-    config.low_saturation_ = low_saturation_range_;
-    config.high_saturation_ = high_saturation_range_;
-    config.low_value_ = low_value_range_;
-    config.high_value_ = high_value_range_;
+    config.alow_hue_ = alow_hue_range_;
+    config.ahigh_hue_ = ahigh_hue_range_;
+    config.alow_saturation_ = alow_saturation_range_;
+    config.ahigh_saturation_ = ahigh_saturation_range_;
+    config.alow_value_ = alow_value_range_;
+    config.ahigh_value_ = ahigh_value_range_;
+    config.blow_hue_ = blow_hue_range_;
+    config.bhigh_hue_ = bhigh_hue_range_;
+    config.blow_saturation_ = blow_saturation_range_;
+    config.bhigh_saturation_ = bhigh_saturation_range_;
+    config.blow_value_ = blow_value_range_;
+    config.bhigh_value_ = bhigh_value_range_;
     config.min_cone_area_ = low_contour_area_;
     config.max_cone_area_ = high_contour_area_;
     config.max_aspect_ratio_ = max_aspect_ratio_;
