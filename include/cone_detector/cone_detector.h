@@ -105,11 +105,6 @@ private:
 	// Publisher handles.
 	ros::Publisher cone_found_pub_;
 
-//	dynamic_reconfigure::Server<kaimi_mid_camera::kaimi_mid_camera_paramsConfig> dynamicConfigurationServer;
-//	dynamic_reconfigure::Server<kaimi_mid_camera::kaimi_mid_camera_paramsConfig>::CallbackType f;
-//
-//	static void configurationCallback(kaimi_mid_camera::kaimi_mid_camera_paramsConfig &config, uint32_t level);
-
 	// Process AnnotateDetectorImage service call.
 	ros::ServiceServer annotateService;
 	std::string ll_annotation_;

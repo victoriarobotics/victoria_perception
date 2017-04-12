@@ -1,15 +1,21 @@
 TODO
+* Replace ROS_DEBUG_NAMED with ROS_INFO_NAMED or do something else.
+
 RoboMagellanNode
-* Service to push any goal.
+√ Service to push any goal.
 
 ConeDetector
 * Kmeans service returns list of blobs of [HSV-value-range, centroid, pixel count]
 * Service to accept list of [HSV-value-range] to set filters
 * Solve jitter response
 * Record images if requested
+* Make two-lefel filter
 
 DiscoverCone
-* No longer accumulating yaw
+√ No longer accumulating yaw.
+
+MoveDirectedDistance goal
+* Create. Input final pose and orientation. Useful for MoveToCone recovery.
 
 MoveFromCone goal
 * Implement
@@ -20,8 +26,8 @@ MoveToCone goal
   then is lost--may be tracking errant object.
 
 SeekToGps:
-* Do yaw adjustment based upon how far to goal distance, applying yaw gently
-* Rotate in shorter direction.
+?? Do yaw adjustment based upon how far to goal distance, applying yaw gently
+?? Rotate in shorter direction.
 
 * KMEANS in cone detector, via service, to pick up colors of cone.
 * Smooth out z movements in SeekToGps

@@ -159,7 +159,6 @@ add_executable(cone_detector_node
 add_dependencies(
   cone_detector_node 
   victoria_perception_generate_messages_cpp
-  cone_detector_gencfg
 )
 
 add_executable(publish_image_node
