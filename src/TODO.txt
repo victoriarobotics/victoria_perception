@@ -2,6 +2,7 @@ TODO
 * Replace ROS_DEBUG_NAMED with ROS_INFO_NAMED or do something else.
 
 RoboMagellanNode
+* Add clear goal stack to service options.
 √ Service to push any goal.
 
 ConeDetector
