@@ -37,14 +37,15 @@
 #include "victoria_perception/ObjectDetector.h"
 
 void ConeDetector::configCb(victoria_perception::ConeDetectorConfig &config, uint32_t level) {
-    ROS_INFO("Reconfigure Request: alow_hue_: %d, ahigh_hue_: %d"
+    ROS_INFO("[ConeDetector::configCb] Reconfigure Request: alow_hue_: %d, ahigh_hue_: %d"
              ", alow_saturation_: %d, ahigh_saturation_: %d"
              ", alow_value_: %d, ahigh_value_: %d"
              ", blow_hue_: %d, bhigh_hue_: %d"
              ", blow_saturation_: %d, bhigh_saturation_: %d"
              ", blow_value_: %d, bhigh_value_: %d"
              ", min_cone_area_: %d, max_cone_area_: %d"
-             ", max_aspect_ratio_: %7.4f", 
+             ", max_aspect_ratio_: %7.4f"
+             ", poly_epsilon_: %7.4f", 
              config.alow_hue_, config.ahigh_hue_, 
              config.alow_saturation_, config.ahigh_saturation_, 
              config.alow_value_, config.ahigh_value_ ,
@@ -52,7 +53,8 @@ void ConeDetector::configCb(victoria_perception::ConeDetectorConfig &config, uin
              config.blow_saturation_, config.bhigh_saturation_, 
              config.blow_value_, config.bhigh_value_ ,
              config.min_cone_area_, config.max_cone_area_,
-             config.max_aspect_ratio_);
+             config.max_aspect_ratio_,
+             config.poly_epsilon_);
     alow_hue_range_ = config.alow_hue_;
     ahigh_hue_range_ = config.ahigh_hue_;
     alow_saturation_range_ = config.alow_saturation_;
@@ -68,6 +70,7 @@ void ConeDetector::configCb(victoria_perception::ConeDetectorConfig &config, uin
     low_contour_area_ = config.min_cone_area_;
     high_contour_area_ = config.max_cone_area_;
     max_aspect_ratio_ = config.max_aspect_ratio_;
+    poly_epsilon_ = config.poly_epsilon_;
 }
 
 bool ConeDetector::strToBgr(std::string bgr_string, cv::Scalar& out_color) {
@@ -296,9 +299,12 @@ bool ConeDetector::hullIsValid(std::vector<cv::Point>& hull) {
 
     std::stringstream ss;
     ss << "[ConeDetector::hullIsValid]";
+
+    ROS_INFO_COND_NAMED(debug_, "cone_detector", " tl: %d, tr: %d, bl: %d, br: %d, miny: %d, maxy: %d, ltop: %d, lbot: %d, h: %d, ar: %5.3f",
+        top_left_x, top_right_x, bottom_left_x, bottom_right_x, min_y, max_y, length_top, length_bottom, height, aspect_ratio);
     if (aspect_ratio > max_aspect_ratio_) {
         ss << " REJECT, aspect_ratio: " << std::setprecision(4) << aspect_ratio << " greater than max: " << std::setprecision(4) << max_aspect_ratio_;
-        ROS_DEBUG_NAMED("cone_detector", "%s", ss.str().c_str());
+        ROS_INFO_COND_NAMED("debug_", "cone_detector", "] %s", ss.str().c_str());
         return false;
     }
 
@@ -311,7 +317,7 @@ bool ConeDetector::hullIsValid(std::vector<cv::Point>& hull) {
         if (length_top >= (0.75 * length_bottom)) ss << "REJECT top longer that 0.75 of bottom. ";
     }
     
-    ROS_DEBUG_NAMED("cone_detector", "%s", ss.str().c_str());
+    ROS_INFO_COND_NAMED(debug_, "cone_detector", " %s", ss.str().c_str());
     return result;
 }
 
@@ -369,6 +375,7 @@ void ConeDetector::imageCb(cv::Mat& original_image) {
 
     // Now find the best cone (if any) in the image.
     object_detected_ = false;
+    bool at_least_on_good_area_found = false;
     if (!contours.empty()) {
         size_t best_blob_index = -1;
         int best_blob_size = 0;
@@ -380,8 +387,9 @@ void ConeDetector::imageCb(cv::Mat& original_image) {
             approxPolyDP(cv::Mat(contours[i]), dp, poly_epsilon_, true);
 
             // Filter out polynomials that are too small or too large to be an interesting cone.
-            int contour_size = cv::contourArea(contours[i]);
-            if ((contour_size >= low_contour_area_) && (contour_size <= high_contour_area_)) {
+            int contour_area = cv::contourArea(contours[i]);
+            if ((contour_area >= low_contour_area_) && (contour_area <= high_contour_area_)) {
+                at_least_on_good_area_found = true;
                 // Convert the polynomial into a convex hull (i.e., ignore any jagged areas that
                 // point inward).
                 std::vector<cv::Point> hull;
@@ -393,25 +401,32 @@ void ConeDetector::imageCb(cv::Mat& original_image) {
                     bool ok = hullIsValid(hull);    // Do further test on hull to see if it's a likely good cone.
                     if (ok) {
                         // We've got a winner. Draw a line around the hull in the annotation image.
-                        cv::polylines(image, hull, true, cv::Scalar(255, 0, 0), 1, 8, 0);
+                        cv::polylines(image, dp/*hull*/, true, cv::Scalar(255, 0, 0), 1, 8, 0);
 
                         // Capture information about the winner.
                         best_blob_index = i;
-                        best_blob_size = contour_size;
+                        best_blob_size = contour_area;
                         some_polynomial = &contours[i];
                         break;
                     } else {
                         // Not a good enough hull to be a cone candidate. Ignore it.
+                        ROS_INFO_COND_NAMED(debug_, "cone_detector", "[ConeDetector::imageCb] hullIsValid() returns false");
                     }
                 } else {
                     // Hull has too few points to be a triangle or too many points (shape is too complex). Ignore it.
+                    ROS_INFO_COND_NAMED(debug_, "cone_detector", "[ConeDetector::imageCb] hull size: %ld not in [3..10)",
+                        hull.size());
                 }
-
             } else {
                 // Contour area is too small or too large to be an interesting cone candidate. Ignore it.
             }
         }
 
+        if (!at_least_on_good_area_found) {
+            ROS_INFO_COND_NAMED(debug_, "cone_detector", "[ConeDetector::imageCb] not one contour had an area in [%d..%d]",
+                low_contour_area_, high_contour_area_);
+
+        }
 
         // TODO:
         // Capture all cones and select best one.
@@ -471,8 +486,10 @@ void ConeDetector::imageCb(cv::Mat& original_image) {
             std_msgs::String message;
             message.data = topic_msg.str();
             cone_found_pub_.publish(message);
+            ROS_INFO_COND_NAMED(debug_, "cone_detector", "[ConeDetector::imageCb] Cone detected x: %d, y: %d, w: %d, h: %d, area: %d",
+                object_x_, object_y_, image_width_, image_height_, object_area_);
         } else {
-            ROS_DEBUG_NAMED("[cone_detector]", "[ConeDetector] No cone detected");
+            ROS_INFO_COND_NAMED(debug_, "cone_detector", "[ConeDetector::imageCb] No cone detected");
             
             // Publish one version of the cone detector message.
             std::stringstream not_found_msg;
@@ -490,7 +507,7 @@ void ConeDetector::imageCb(cv::Mat& original_image) {
         sensor_msgs::ImagePtr annotated_image_msg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", annotation_image).toImageMsg();
         image_pub_annotated_.publish(annotated_image_msg);
     } else {
-        ROS_DEBUG_NAMED("cone_detector", "[ConeDetector] no contours found");
+        ROS_INFO_COND_NAMED(debug_, "cone_detector", "[ConeDetector] no contours found");
         cv::resize(image, annotation_image, cv::Size(640, 480));
         placeAnnotationsInImage(annotation_image);
 
@@ -567,6 +584,7 @@ ConeDetector::ConeDetector() :
     dynamic_server_.setCallback(configCallbackType_);
 
     assert(ros::param::get("~camera_name", camera_name_));
+    assert(ros::param::get("~debug_cone_detector", debug_));
     assert(ros::param::get("~image_topic_name", image_topic_name_));
     assert(ros::param::get("~max_aspect_ratio", max_aspect_ratio_));
     assert(ros::param::get("~poly_epsilon", poly_epsilon_));
@@ -591,6 +609,7 @@ ConeDetector::ConeDetector() :
     assert(ros::param::get("~resize_y", resize_y_));
 
     ROS_INFO("[ConeDetector] PARAM camera_name: %s", camera_name_.c_str());
+    ROS_INFO("[ConeDetector] PARAM debug_cone_detector: %s", debug_ ? "TRUE" : "FALSE");
     ROS_INFO("[ConeDetector] PARAM image_topic_name: %s", image_topic_name_.c_str());
     ROS_INFO("[ConeDetector] PARAM low_contour_area: %d, high_contour_area: %d", low_contour_area_, high_contour_area_);
     ROS_INFO("[ConeDetector] PARAM alow_hue_range: %d, ahigh_hue_range: %d", alow_hue_range_, ahigh_hue_range_);
@@ -603,6 +622,16 @@ ConeDetector::ConeDetector() :
     ROS_INFO("[ConeDetector] PARAM poly_epsilon: %7.4f", poly_epsilon_);
     ROS_INFO("[ConeDetector] PARAM resize_x: %d, resize_y: %d", resize_x_, resize_y_);
     ROS_INFO("[ConeDetector] PARAM show_step_times: %s", show_step_times_ ? "TRUE" : "FALSE");
+
+    nh_ = ros::NodeHandle("~");
+
+    assert(annotateService = nh_.advertiseService("annotate_detector_image", &ConeDetector::annotateCb, this));
+    assert(calibrateConeDetectionService = nh_.advertiseService("calibrate_cone_detection", &ConeDetector::calibrateConeDetectionCb, this));
+
+    assert(image_pub_annotated_ = it_.advertise("cone_detector/annotated_image", 1));
+    assert(image_pub_thresholded_ = it_.advertise("cone_detector/thresholded_image", 1));
+    assert(image_sub_ = it_.subscribe(image_topic_name_, 1, &ConeDetector::imageTopicCb, this));
+    assert(cone_found_pub_ = nh_.advertise<std_msgs::String>("cone_detector_summary", 2));
 
     victoria_perception::ConeDetectorConfig config;
     config.alow_hue_ = alow_hue_range_;
@@ -622,15 +651,6 @@ ConeDetector::ConeDetector() :
     config.max_aspect_ratio_ = max_aspect_ratio_;
     dynamic_server_.updateConfig(config);
 
-     nh_ = ros::NodeHandle("~");
-
-    annotateService = nh_.advertiseService("annotate_detector_image", &ConeDetector::annotateCb, this);
-    calibrateConeDetectionService = nh_.advertiseService("calibrate_cone_detection", &ConeDetector::calibrateConeDetectionCb, this);
-
-    image_pub_annotated_ = it_.advertise("cone_detector/annotated_image", 1);
-    image_pub_thresholded_ = it_.advertise("cone_detector/thresholded_image", 1);
-    image_sub_ = it_.subscribe(image_topic_name_, 1, &ConeDetector::imageTopicCb, this);
-    cone_found_pub_ = nh_.advertise<std_msgs::String>("cone_detector_summary", 2);
 }
 
 void ConeDetector::imageTopicCb(const sensor_msgs::ImageConstPtr& msg) {

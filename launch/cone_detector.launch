@@ -4,38 +4,54 @@
   <arg unless="$(arg doDebug)" name="launchPrefix" value="" />
   
   <arg name="camera_name" default="primesense_camera" doc="Name of camera, to get properties" />
+  <arg name="debug_cone_detector" default="false" doc="false => log interesting debug data" />
   <arg name="fps" default="20" doc="Max frames per second to report object detection results" />
   <arg name="image_topic_name" default="/camera/color/image_raw" doc="camera topic name" />
   <arg name="image_transport" default="compressed" doc="image transport (e.g., compressed) to be used" />
   <arg name="max_aspect_ratio" default="0.85" doc="Max top_length / bottom_length acceptable for cone shape" />
-  <arg name="poly_epsilon" default="6.7" doc="Epsilong value for approxPolyDP" />
+  <arg name="poly_epsilon" default="8.0" doc="Epsilong value for approxPolyDP" />
   <arg name="resize_x" default="320" doc="Image will be resized to this many columns" />
   <arg name="resize_y" default="240" doc="Image will be resized to this many rows" />
   <arg name="show_step_times" default="false" doc="true => show computation times for interesting parts of object recognition" />
 
-  <arg name="low_hue_range" default="0" doc="Low range of hue" />
-  <arg name="high_hue_range" default="179" doc="High range of hue" />
-  <arg name="low_saturation_range" default="140" doc="Low saturation range" />
-  <arg name="high_saturation_range" default="255" doc="High saturantion range" />
-  <arg name="low_value_range" default="178" doc="Low value range" />
-  <arg name="high_value_range" default="255" doc="High value range" />
+  <arg name="alow_hue_range" default="0" doc="Low range of hue of first filter" />
+  <arg name="ahigh_hue_range" default="179" doc="High range of hue of first filter" />
+  <arg name="alow_saturation_range" default="140" doc="Low saturation range of first filter" />
+  <arg name="ahigh_saturation_range" default="255" doc="High saturantion range of first filter" />
+  <arg name="alow_value_range" default="178" doc="Low value range of first filter" />
+  <arg name="ahigh_value_range" default="255" doc="High value range of first filter" />
+
+  <arg name="blow_hue_range" default="0" doc="Low range of hue of second filter" />
+  <arg name="bhigh_hue_range" default="179" doc="High range of hue of second filter" />
+  <arg name="blow_saturation_range" default="140" doc="Low saturation range of second filter" />
+  <arg name="bhigh_saturation_range" default="255" doc="High saturantion range of second filter" />
+  <arg name="blow_value_range" default="178" doc="Low value range of second filter" />
+  <arg name="bhigh_value_range" default="255" doc="High value range of second filter" />
+
   <arg name="low_contour_area" default="80" doc="Minimum contour area in square pixels" />
   <arg name="high_contour_area" default="76800" doc="Maximum contour area in square pixels" />
 
   <node pkg="victoria_perception" name="cone_detector" type="cone_detector_node" respawn="true" output="screen" launch-prefix="$(arg launchPrefix)" >
     <param name="camera_name" value="$(arg camera_name)" type="str" />
+    <param name="debug_cone_detector" value="$(arg debug_cone_detector)" type="bool" />
     <param name="fps" value="$(arg fps)" type="int" />
     <param name="image_topic_name" value="$(arg image_topic_name)" type="str" />
     <param name="image_transport" value="$(arg image_transport)" type="str" />
     <param name="max_aspect_ratio" value="$(arg max_aspect_ratio)" />
     <param name="poly_epsilon" value="$(arg poly_epsilon)" />
     <param name="show_step_times" value="$(arg show_step_times)" type="bool" />
-    <param name="low_hue_range" value="$(arg low_hue_range)" type="int" />
-    <param name="high_hue_range" value="$(arg high_hue_range)" type="int" />
-    <param name="low_saturation_range" value="$(arg low_saturation_range)" type="int" />
-    <param name="high_saturation_range" value="$(arg high_saturation_range)" type="int" />
-    <param name="low_value_range" value="$(arg low_value_range)" type="int" />
-    <param name="high_value_range" value="$(arg high_value_range)" type="int" />
+    <param name="alow_hue_range" value="$(arg alow_hue_range)" type="int" />
+    <param name="ahigh_hue_range" value="$(arg ahigh_hue_range)" type="int" />
+    <param name="alow_saturation_range" value="$(arg alow_saturation_range)" type="int" />
+    <param name="ahigh_saturation_range" value="$(arg ahigh_saturation_range)" type="int" />
+    <param name="alow_value_range" value="$(arg alow_value_range)" type="int" />
+    <param name="ahigh_value_range" value="$(arg ahigh_value_range)" type="int" />
+    <param name="blow_hue_range" value="$(arg blow_hue_range)" type="int" />
+    <param name="bhigh_hue_range" value="$(arg bhigh_hue_range)" type="int" />
+    <param name="blow_saturation_range" value="$(arg blow_saturation_range)" type="int" />
+    <param name="bhigh_saturation_range" value="$(arg bhigh_saturation_range)" type="int" />
+    <param name="blow_value_range" value="$(arg blow_value_range)" type="int" />
+    <param name="bhigh_value_range" value="$(arg bhigh_value_range)" type="int" />
     <param name="low_contour_area" value="$(arg low_contour_area)" type="int" />
     <param name="high_contour_area" value="$(arg high_contour_area)" type="int" />
     <param name="resize_x" value="$(arg resize_x)" type="int" />

@@ -10,7 +10,7 @@ ConeDetector
 * Service to accept list of [HSV-value-range] to set filters
 * Solve jitter response
 * Record images if requested
-* Make two-lefel filter
+√ Make two-level filter
 
 DiscoverCone
 √ No longer accumulating yaw.
@@ -28,11 +28,11 @@ MoveToCone goal
 
 SeekToGps:
 ?? Do yaw adjustment based upon how far to goal distance, applying yaw gently
-?? Rotate in shorter direction.
+√ Rotate in shorter direction.
 
-* KMEANS in cone detector, via service, to pick up colors of cone.
-* Smooth out z movements in SeekToGps
-* Faster straight movement.
+√ KMEANS in cone detector, via service, to pick up colors of cone.
+√ Smooth out z movements in SeekToGps
+√ Faster straight movement.
 * Capture threshold/annotated pictures to log
 
 SolveKmeans goal

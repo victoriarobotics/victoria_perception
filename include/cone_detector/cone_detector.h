@@ -84,6 +84,8 @@ private:
 	float poly_epsilon_;
 	// End values for the sample thresholding operation.
 
+	bool debug_;
+
 	// Name of camera, to get camera properties.
 	std::string camera_name_;
 
