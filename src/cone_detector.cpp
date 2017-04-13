@@ -45,7 +45,9 @@ void ConeDetector::configCb(victoria_perception::ConeDetectorConfig &config, uin
              ", blow_value_: %d, bhigh_value_: %d"
              ", min_cone_area_: %d, max_cone_area_: %d"
              ", max_aspect_ratio_: %7.4f"
-             ", poly_epsilon_: %7.4f", 
+             ", poly_epsilon_: %7.4f"
+             ", erode_kernel_size_: %d"
+             ", debug_: %s", 
              config.alow_hue_, config.ahigh_hue_, 
              config.alow_saturation_, config.ahigh_saturation_, 
              config.alow_value_, config.ahigh_value_ ,
@@ -54,7 +56,9 @@ void ConeDetector::configCb(victoria_perception::ConeDetectorConfig &config, uin
              config.blow_value_, config.bhigh_value_ ,
              config.min_cone_area_, config.max_cone_area_,
              config.max_aspect_ratio_,
-             config.poly_epsilon_);
+             config.poly_epsilon_,
+             config.erode_kernel_size_,
+             config.debug_ ? "TRUE" : "FALSE");
     alow_hue_range_ = config.alow_hue_;
     ahigh_hue_range_ = config.ahigh_hue_;
     alow_saturation_range_ = config.alow_saturation_;
@@ -71,6 +75,8 @@ void ConeDetector::configCb(victoria_perception::ConeDetectorConfig &config, uin
     high_contour_area_ = config.max_cone_area_;
     max_aspect_ratio_ = config.max_aspect_ratio_;
     poly_epsilon_ = config.poly_epsilon_;
+    erode_kernel_size_ = config.erode_kernel_size_;
+    debug_ = config.debug_;
 }
 
 bool ConeDetector::strToBgr(std::string bgr_string, cv::Scalar& out_color) {
@@ -151,7 +157,7 @@ void ConeDetector::kmeansImage(cv::Mat image) {
            centers);                    // Output matrix of the cluster centers, one row per each cluster center.
 
     // Print out the number of cluster rows (a.k.a centers) and cluster columns (3--r, g, b).
-    std::cout << "centers: " << centers.rows << " " << centers.cols << std::endl; //#####
+    //###std::cout << "centers: " << centers.rows << " " << centers.cols << std::endl;
     assert(labels.type() == CV_32SC1);
     assert(centers.type() == CV_32FC1);
 
@@ -226,13 +232,13 @@ void ConeDetector::kmeansImage(cv::Mat image) {
     // Sort the histogram, descending.
     cv::Mat histSortIdx;
     cv::sortIdx(cluster_histogram, histSortIdx, cv::SORT_EVERY_COLUMN + cv::SORT_DESCENDING);
-    std::cout << "cluster_histogram..." << std::endl << cluster_histogram << std::endl; //#####
+    //#####std::cout << "cluster_histogram..." << std::endl << cluster_histogram << std::endl; //#####
 
     // Print out the sort index of each cluster.
-    std::cout << "histSortIdx..." << std::endl << histSortIdx << std::endl; //#####
+    //#####std::cout << "histSortIdx..." << std::endl << histSortIdx << std::endl; //#####
 
     // Print out the number of label rows (i.e., number of pixels) and label columns (there is only one).
-    std::cout << "labels: " << labels.rows << " " << labels.cols << std::endl; //#####
+    //#####std::cout << "labels: " << labels.rows << " " << labels.cols << std::endl; //#####
 
     for (int i = 0; i < histSortIdx.rows; i++) {
         int sx = histSortIdx.at<int>(i);
@@ -304,7 +310,7 @@ bool ConeDetector::hullIsValid(std::vector<cv::Point>& hull) {
         top_left_x, top_right_x, bottom_left_x, bottom_right_x, min_y, max_y, length_top, length_bottom, height, aspect_ratio);
     if (aspect_ratio > max_aspect_ratio_) {
         ss << " REJECT, aspect_ratio: " << std::setprecision(4) << aspect_ratio << " greater than max: " << std::setprecision(4) << max_aspect_ratio_;
-        ROS_INFO_COND_NAMED("debug_", "cone_detector", "] %s", ss.str().c_str());
+        ROS_INFO_COND_NAMED(debug_, "cone_detector", "] %s", ss.str().c_str());
         return false;
     }
 
@@ -343,24 +349,37 @@ void ConeDetector::imageCb(cv::Mat& original_image) {
     cv::Mat a_img_thresholded;
     cv::inRange(img_hsv, 
                 cv::Scalar(alow_hue_range_, alow_saturation_range_, alow_value_range_), 
-                cv::Scalar(ahigh_hue_range_, ahigh_saturation_range_, ahigh_value_range_), a_img_thresholded);
+                cv::Scalar(ahigh_hue_range_, ahigh_saturation_range_, ahigh_value_range_), 
+                a_img_thresholded);
     cv::Mat b_img_thresholded;
     cv::inRange(img_hsv, 
                 cv::Scalar(blow_hue_range_, blow_saturation_range_, blow_value_range_), 
-                cv::Scalar(bhigh_hue_range_, bhigh_saturation_range_, bhigh_value_range_), b_img_thresholded);
+                cv::Scalar(bhigh_hue_range_, bhigh_saturation_range_, bhigh_value_range_), 
+                b_img_thresholded);
 
     // Merge the two filters
     cv::Mat merged_img_thresholded;
-    cv::bitwise_or(a_img_thresholded, b_img_thresholded, merged_img_thresholded);
+    cv::Mat merged_img_thresholded_tmp;
+    cv::bitwise_or(a_img_thresholded, b_img_thresholded, merged_img_thresholded_tmp);
+    merged_img_thresholded_tmp.copyTo(merged_img_thresholded);
 
     // Remove small objects from the background.
-    cv::erode(merged_img_thresholded, a_img_thresholded, getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(3, 3)));
-    cv::dilate(a_img_thresholded, a_img_thresholded, getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(3, 3)));
-    cv::GaussianBlur(a_img_thresholded, a_img_thresholded, cv::Size(5, 5), 0);
+    cv::erode(merged_img_thresholded, merged_img_thresholded, getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(erode_kernel_size_, erode_kernel_size_)));
+    cv::dilate(merged_img_thresholded, merged_img_thresholded, getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(erode_kernel_size_, erode_kernel_size_)));
+    cv::GaussianBlur(merged_img_thresholded, merged_img_thresholded, cv::Size(5, 5), 0);
 
     // Now convert white areas to a white outline.
     cv::Canny(merged_img_thresholded, merged_img_thresholded, 50, 150, 3);
-
+    if (debug_){
+        cv::namedWindow("A HSV", cv::WINDOW_AUTOSIZE);
+        cv::imshow("A HSV", a_img_thresholded);
+        cv::namedWindow("B HSV", cv::WINDOW_AUTOSIZE);
+        cv::imshow("B HSV", b_img_thresholded);
+        cv::namedWindow("MERGED_HSV", cv::WINDOW_AUTOSIZE);
+        cv::imshow("MERGED_HSV", merged_img_thresholded_tmp);
+        cv::namedWindow("SMEARED", cv::WINDOW_AUTOSIZE);
+        cv::imshow("SMEARED", merged_img_thresholded);
+    }
 
     // Find polygons that are closed loops of white lines.
     std::vector<std::vector<cv::Point> > contours;
@@ -563,6 +582,7 @@ ConeDetector::ConeDetector() :
     bhigh_saturation_range_(0),
     blow_value_range_(0),
     bhigh_value_range_(0),
+    erode_kernel_size_(3),
     low_contour_area_(500),
     high_contour_area_(200000),
     last_image_count_(0),
@@ -571,7 +591,7 @@ ConeDetector::ConeDetector() :
     lr_annotation_(""),
     lr_color_(255, 255, 255),
     max_aspect_ratio_(0.85),
-    poly_epsilon_(6.7),
+    poly_epsilon_(8),
     resize_x_(320),
     resize_y_(240),
     show_step_times_(false),
@@ -585,6 +605,7 @@ ConeDetector::ConeDetector() :
 
     assert(ros::param::get("~camera_name", camera_name_));
     assert(ros::param::get("~debug_cone_detector", debug_));
+    assert(ros::param::get("~erode_kernel_size_", erode_kernel_size_));
     assert(ros::param::get("~image_topic_name", image_topic_name_));
     assert(ros::param::get("~max_aspect_ratio", max_aspect_ratio_));
     assert(ros::param::get("~poly_epsilon", poly_epsilon_));
@@ -610,6 +631,7 @@ ConeDetector::ConeDetector() :
 
     ROS_INFO("[ConeDetector] PARAM camera_name: %s", camera_name_.c_str());
     ROS_INFO("[ConeDetector] PARAM debug_cone_detector: %s", debug_ ? "TRUE" : "FALSE");
+    ROS_INFO("[ConeDetector] PARAM erode_kernel_size: %d", erode_kernel_size_);
     ROS_INFO("[ConeDetector] PARAM image_topic_name: %s", image_topic_name_.c_str());
     ROS_INFO("[ConeDetector] PARAM low_contour_area: %d, high_contour_area: %d", low_contour_area_, high_contour_area_);
     ROS_INFO("[ConeDetector] PARAM alow_hue_range: %d, ahigh_hue_range: %d", alow_hue_range_, ahigh_hue_range_);
@@ -649,6 +671,8 @@ ConeDetector::ConeDetector() :
     config.min_cone_area_ = low_contour_area_;
     config.max_cone_area_ = high_contour_area_;
     config.max_aspect_ratio_ = max_aspect_ratio_;
+    config.poly_epsilon_ = poly_epsilon_;
+    config.erode_kernel_size_ = erode_kernel_size_;
     dynamic_server_.updateConfig(config);
 
 }

@@ -82,6 +82,7 @@ private:
 
 	float max_aspect_ratio_;
 	float poly_epsilon_;
+	int erode_kernel_size_;
 	// End values for the sample thresholding operation.
 
 	bool debug_;
