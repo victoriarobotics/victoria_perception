@@ -38,7 +38,7 @@ int main(int argc, char** argv) {
     victoria_perception::ObjectDetector detector_msg;
 
     ros::param::get("~fps", fps);
-    ROS_INFO("[cone_detector] PARAM fps: %d", fps);
+    ROS_INFO("[cone_detector_node] PARAM fps: %d", fps);
     coneDetector = &ConeDetector::singleton();
 
 	ros::Publisher detector_pub = nh.advertise<victoria_perception::ObjectDetector>("cone_detector", 2);

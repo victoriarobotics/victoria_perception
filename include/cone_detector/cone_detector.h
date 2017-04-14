@@ -36,6 +36,7 @@
 #include <string>
 
 #include "victoria_perception/AnnotateDetectorImage.h"
+#include "victoria_perception/CalibrateConeDetection.h"
 #include "victoria_perception/ConeDetectorConfig.h"
 
 
@@ -58,21 +59,33 @@ private:
 	ros::NodeHandle nh_;
 
 	// HSV Values and contour area range for the sample thresholding operation.
-	int low_hue_range_;
-	int high_hue_range_;
+	int alow_hue_range_;
+	int ahigh_hue_range_;
 
-	int low_saturation_range_;
-	int high_saturation_range_;
+	int alow_saturation_range_;
+	int ahigh_saturation_range_;
 
-	int low_value_range_;
-	int high_value_range_;
+	int alow_value_range_;
+	int ahigh_value_range_;
+
+	int blow_hue_range_;
+	int bhigh_hue_range_;
+
+	int blow_saturation_range_;
+	int bhigh_saturation_range_;
+
+	int blow_value_range_;
+	int bhigh_value_range_;
 
 	int low_contour_area_;
 	int high_contour_area_;
 
 	float max_aspect_ratio_;
 	float poly_epsilon_;
+	int erode_kernel_size_;
 	// End values for the sample thresholding operation.
+
+	bool debug_;
 
 	// Name of camera, to get camera properties.
 	std::string camera_name_;
@@ -104,12 +117,7 @@ private:
 	// Publisher handles.
 	ros::Publisher cone_found_pub_;
 
-//	dynamic_reconfigure::Server<kaimi_mid_camera::kaimi_mid_camera_paramsConfig> dynamicConfigurationServer;
-//	dynamic_reconfigure::Server<kaimi_mid_camera::kaimi_mid_camera_paramsConfig>::CallbackType f;
-//
-//	static void configurationCallback(kaimi_mid_camera::kaimi_mid_camera_paramsConfig &config, uint32_t level);
-
-	// Process service call.
+	// Process AnnotateDetectorImage service call.
 	ros::ServiceServer annotateService;
 	std::string ll_annotation_;
 	cv::Scalar ll_color_;
@@ -120,27 +128,40 @@ private:
 	std::string ur_annotation_;
 	cv::Scalar ur_color_;
 
+	// Process CalibrateConeDetection service call.
+	ros::ServiceServer calibrateConeDetectionService;
+
+	// Handle annotation service.
 	bool annotateCb(victoria_perception::AnnotateDetectorImage::Request &request,
-			victoria_perception::AnnotateDetectorImage::Response &response);
+					victoria_perception::AnnotateDetectorImage::Response &response);
+
+	// Handle calibrate cone detection service.
+	bool calibrateConeDetectionCb(victoria_perception::CalibrateConeDetection::Request &request,
+								  victoria_perception::CalibrateConeDetection::Response &response);
 
 	// Dynamic reconfiguration.
 	dynamic_reconfigure::Server<victoria_perception::ConeDetectorConfig> dynamic_server_;
 	dynamic_reconfigure::Server<victoria_perception::ConeDetectorConfig>::CallbackType configCallbackType_;
-	void configCb(victoria_perception::ConeDetectorConfig &config, uint32_t level);
+	void configCb(const victoria_perception::ConeDetectorConfig &config, uint32_t level);
 
 	// Convert a 6-digit hexadecimal string into a blue-green-red color.
-	static bool strToBgr(std::string bgr_string, cv::Scalar& out_color);
+	static bool strToBgr(const std::string &bgr_string, cv::Scalar& out_color);
 	
-	bool hullIsValid(std::vector<cv::Point>& hull);
+	bool hullIsValid(const std::vector<cv::Point>& hull);
 
 	// Process one image.
-	void imageCb(cv::Mat& image);
+	cv::Mat last_image_;
+	long last_image_count_;
+	void imageCb(const cv::Mat &image);
 
 	// Process one image topic message.
-	void imageTopicCb(const sensor_msgs::ImageConstPtr& msg);
+	void imageTopicCb(const sensor_msgs::ImageConstPtr &msg);
+
+	// Compute KMEANS on image.
+	void kmeansImage(const cv::Mat &image);
 
 	// Put requested annotations in image.
-	void placeAnnotationsInImage(cv::Mat annotation_image) ;
+	void placeAnnotationsInImage(cv::Mat &annotation_image) ;
 
 	// singleton pattern.
 	ConeDetector();
