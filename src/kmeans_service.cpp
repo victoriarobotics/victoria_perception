@@ -103,17 +103,19 @@ void KmeansService::createAnnotatedImage(const cv::Mat &image) {
     image.copyTo(annotated_image); // For debugging purposes
 
     // Annotate the image with color boxes for each cluster.
-    cv::Vec3b cluster_colors[number_clusters_];
+    cv::Scalar cluster_colors[number_clusters_];
+    cv::Vec3b cluster_colors_vec3b[number_clusters_];
     static const int box_height = image.rows / (number_clusters_ + 1);
 
     for (int i = 0; i < number_clusters_; i++) {
-        cluster_colors[i] = cv::Vec3b((rand() % number_clusters_) * (256 / number_clusters_), (rand() % number_clusters_) * (256 / number_clusters_), (rand() % number_clusters_) * (256 / number_clusters_));
+        cluster_colors[i] = cv::Scalar((rand() % number_clusters_) * (256 / number_clusters_), (rand() % number_clusters_) * (256 / number_clusters_), (rand() % number_clusters_) * (256 / number_clusters_));
+        cluster_colors_vec3b[i] = cv::Vec3b(cluster_colors[i][0], cluster_colors[i][1], cluster_colors[i][2]);
     }
 
     // False color the image based upon pixel cluster.
     for (int row = 0; row < image.rows; row++) {
         for (int col = 0; col < image.cols; col++) {
-            annotated_image.at<cv::Vec3b>(row, col) = cluster_colors[labels_.at<int>((row * image.cols) + col)];
+            annotated_image.at<cv::Vec3b>(row, col) = cluster_colors_vec3b[labels_.at<int>((row * image.cols) + col)];
         }
     }
 
