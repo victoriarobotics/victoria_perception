@@ -29,7 +29,7 @@
   <arg name="blow_value_range" default="208" doc="Low value range of second filter" />
   <arg name="bhigh_value_range" default="255" doc="High value range of second filter" />
 
-  <arg name="low_contour_area" default="150" doc="Minimum contour area in square pixels" />
+  <arg name="low_contour_area" default="1050" doc="Minimum contour area in square pixels" />
   <arg name="high_contour_area" default="76800" doc="Maximum contour area in square pixels" />
 
   <node pkg="victoria_perception" name="cone_detector" type="cone_detector_node" respawn="true" output="screen" launch-prefix="$(arg launchPrefix)" >
