@@ -36,7 +36,6 @@
 #include <string>
 
 #include "victoria_perception/AnnotateDetectorImage.h"
-#include "victoria_perception/CalibrateConeDetection.h"
 #include "victoria_perception/ConeDetectorConfig.h"
 
 
