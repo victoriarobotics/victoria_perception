@@ -128,16 +128,9 @@ private:
 	std::string ur_annotation_;
 	cv::Scalar ur_color_;
 
-	// Process CalibrateConeDetection service call.
-	ros::ServiceServer calibrateConeDetectionService;
-
 	// Handle annotation service.
 	bool annotateCb(victoria_perception::AnnotateDetectorImage::Request &request,
 					victoria_perception::AnnotateDetectorImage::Response &response);
-
-	// Handle calibrate cone detection service.
-	bool calibrateConeDetectionCb(victoria_perception::CalibrateConeDetection::Request &request,
-								  victoria_perception::CalibrateConeDetection::Response &response);
 
 	// Dynamic reconfiguration.
 	dynamic_reconfigure::Server<victoria_perception::ConeDetectorConfig> dynamic_server_;
@@ -150,20 +143,15 @@ private:
 	bool hullIsValid(const std::vector<cv::Point>& hull);
 
 	// Process one image.
-	cv::Mat last_image_;
-	long last_image_count_;
 	void imageCb(const cv::Mat &image);
 
 	// Process one image topic message.
 	void imageTopicCb(const sensor_msgs::ImageConstPtr &msg);
 
-	// Compute KMEANS on image.
-	void kmeansImage(const cv::Mat &image);
-
 	// Put requested annotations in image.
 	void placeAnnotationsInImage(cv::Mat &annotation_image) ;
 
-	// singleton pattern.
+	// Singleton pattern.
 	ConeDetector();
 	ConeDetector(ConeDetector const&) : it_(nh_) {};
 	ConeDetector& operator=(ConeDetector const&) {};
