@@ -68,7 +68,7 @@ add_message_files(
 add_service_files(
   FILES
   AnnotateDetectorImage.srv
-  CalibrateConeDetection.srv
+  ComputeKmeans.srv
 )
 
 ## Generate actions in the 'action' folder
@@ -161,6 +161,16 @@ add_dependencies(
   victoria_perception_generate_messages_cpp
 )
 
+add_executable(kmeans_service_node
+  src/kmeans_service_node.cpp
+  src/kmeans_service.cpp
+)
+
+add_dependencies(
+  kmeans_service_node 
+  victoria_perception_generate_messages_cpp
+)
+
 add_executable(publish_image_node
   src/publish_image_node.cpp
 )
@@ -183,6 +193,13 @@ add_dependencies(
 ## Specify libraries to link a library or executable target against
 target_link_libraries(
   cone_detector_node
+  ${catkin_LIBRARIES}
+  ${OpenCV_LIBS}
+  ${Boost_LIBRARIES}
+)
+
+target_link_libraries(
+  kmeans_service_node
   ${catkin_LIBRARIES}
   ${OpenCV_LIBS}
   ${Boost_LIBRARIES}

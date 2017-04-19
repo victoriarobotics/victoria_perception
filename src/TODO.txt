@@ -19,7 +19,7 @@ MoveDirectedDistance goal
 * Create. Input final pose and orientation. Useful for MoveToCone recovery.
 
 MoveFromCone goal
-* Implement
+√ Implement
 
 MoveToCone goal
 * Strategy for when cone is lost--maybe recovery in SolveRoboMagellan goal or simple strategy in MoveToCone

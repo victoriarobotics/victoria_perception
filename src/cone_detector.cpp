@@ -132,117 +132,6 @@ bool ConeDetector::annotateCb(victoria_perception::AnnotateDetectorImage::Reques
     return true;
 }
 
-void ConeDetector::kmeansImage(const cv::Mat &image) {
-    cv::Mat annotated_image;    // For debugging purposes.
-    int height = image.rows;
-    int width = image.cols;
-    cv::Mat labels; // Maps each pixel in image to the result cluster index.
-    static const int cluster_count = 10; // This is arbitrary. I increased it until I got the results I wanted.
-    cv::TermCriteria criteria {cv::TermCriteria::COUNT, 100, 1};  // int type: count=> max iterations, int max count, double epsilon
-    cv::Mat centers;
-
-    image.copyTo(annotated_image); // For debugging purposes
-
-    // Convert data into shape required for KMEANS.
-    cv::Mat reshaped_image = image.reshape(1, image.cols * image.rows);
-    assert(reshaped_image.type() == CV_8UC1);
-    cv::Mat reshaped_image32f;
-    reshaped_image.convertTo(reshaped_image32f, CV_32FC1, 1.0 / 255.0);
-    assert(reshaped_image32f.type() == CV_32FC1);
-
-    // Do KMEANS analysis.
-    cv::kmeans(reshaped_image32f,           // Floating-point matrix of input samples, one row per sample.
-               cluster_count,               // Number of clusters to split the set by.
-               labels,                      // Input/output integer array that stores the cluster indices for every sample.
-               criteria,                    // The algorithm termination criteria.
-               1,                           // Number of times the algorithm is executed using different initial labellings.
-               cv::KMEANS_RANDOM_CENTERS,   // Select random initial centers in each attempt.
-               centers);                    // Output matrix of the cluster centers, one row per each cluster center.
-
-    // Print out the number of cluster rows (a.k.a centers) and cluster columns (3--r, g, b).
-    assert(labels.type() == CV_32SC1);
-    assert(centers.type() == CV_32FC1);
-
-    // Convert centers to colors.
-    cv::Mat centers_u8;
-    centers.convertTo(centers_u8, CV_8UC1, 255.0); // Convert the original centers to an array of clusters, scaled from [0..1) => [0..255].
-    cv::Mat centers_u8c3 = centers_u8.reshape(3);   // Convert to 3 columns (R, G, B).
-
-    // Build a histogram of how many pixels occur for each cluster.
-    cv::Mat cluster_histogram(centers.rows, 1, CV_32S, cv::Scalar(0));
-    cv::MatConstIterator_<int> label_first = labels.begin<int>();
-    cv::MatConstIterator_<int> label_last = labels.end<int>();
-    while (label_first != label_last) {
-        cluster_histogram.at<int>(*label_first, 0) += 1;
-        label_first++;
-    }
-
-    // Pick up HSV of center point.
-    int center_point = (height / 2 * width) + (width / 2);
-    int center_cluster_index = labels.at<int>(center_point);
-    cv::Vec3b center_bgr = centers_u8.at<cv::Vec3b>(center_cluster_index);
-    cv::Mat bgr_point = image(cv::Rect(height / 2, width / 2, 1, 1));
-    cv::Mat hsv_point;
-    cv::cvtColor(bgr_point, hsv_point, cv::COLOR_BGR2HSV);
-    std::cout << "Center point index: " << center_point 
-              << ", cluster: " << center_cluster_index 
-              << ", color: " << center_bgr 
-              << ", hsv: " << hsv_point.at<cv::Vec3b>(0, 0) << std::endl;
-    // Find the HSV range for all points in that cluster.
-    uchar min_hue = 179;
-    uchar max_hue = 0;
-    uchar min_saturation = 255;
-    uchar max_saturation = 0;
-    uchar min_value = 255;
-    uchar max_value = 0;
-    label_first = labels.begin<int>();
-    int pixels_in_cluster = 0;
-    int point_number = 0;
-    while (label_first != label_last) {
-        if (*label_first == center_cluster_index) {
-            // The point is part of the same cluster as the center point.
-            cv::Mat bgr_mat = image(cv::Rect(point_number % width, point_number / width, 1, 1));
-            cv::Mat hsv_mat;
-            cv::cvtColor(bgr_mat, hsv_mat, cv::COLOR_BGR2HSV);
-            cv::Vec3b  point_hsv = hsv_mat.at<cv::Vec3b>(0, 0);
-            if (point_hsv[0] < min_hue) min_hue = point_hsv[0];
-            if (point_hsv[0] > max_hue) max_hue = point_hsv[0];
-            if (point_hsv[1] < min_saturation) min_saturation = point_hsv[1];
-            if (point_hsv[1] > max_saturation) max_saturation = point_hsv[1];
-            if (point_hsv[2] < min_value) min_value = point_hsv[2];
-            if (point_hsv[2] > max_value) max_value = point_hsv[2];
-            annotated_image.at<cv::Vec3b>(cv::Point(point_number % width, point_number / width)) = cv::Vec3b(0, 0, 0);
-            pixels_in_cluster++;
-        }
-
-        point_number++;
-        label_first++;
-    }
-
-    std::cout << "There were " << pixels_in_cluster << " pixels in the cluster and the new ranges are "
-              << "min_hue: " << (int) min_hue << ", max_hue: " << (int) max_hue
-              << ", min_saturation: " << (int) min_saturation << ", max_saturation: " << (int) max_saturation
-              << ", min_value: " << (int) min_value << ", max_value: " << (int) max_value
-              << std::endl;
-
-    // The following prints out interesting debug information for future use.
-    cv::namedWindow("KMEANS_annotated", cv::WINDOW_AUTOSIZE);
-    cv::imshow("KMEANS_annotated", annotated_image);
-    cv::waitKey(20);
-}
-
-bool ConeDetector::calibrateConeDetectionCb(victoria_perception::CalibrateConeDetection::Request &request,
-                                            victoria_perception::CalibrateConeDetection::Response &response) {
-    if (last_image_count_ <= 0) {
-        response.result = "No images received yet";
-        return false;
-    }
-
-    kmeansImage(last_image_);
-    response.result = "Calibrated";
-    return true;
-}
-
 bool ConeDetector::hullIsValid(const std::vector<cv::Point> &hull) {
     // Find the bounding rectangle so we can easily determine hull points which
     // are above vs. below the horizontal centerline.
@@ -310,8 +199,6 @@ bool ConeDetector::hullIsValid(const std::vector<cv::Point> &hull) {
 }
 
 void ConeDetector::imageCb(const cv::Mat &original_image) {
-    original_image.copyTo(last_image_); // Save so kmeans has an image to work on.
-    last_image_count_++;    // Count so kmeans knows that at least one image has been received.
     static const cv::Scalar color = cv::Scalar(0, 0, 255);  // Color of annotated primary circle.
     static const cv::Scalar non_primary_color = cv::Scalar(0, 255, 255);    // Color of annotated non-primary circles.
 
@@ -564,7 +451,6 @@ ConeDetector::ConeDetector() :
     erode_kernel_size_(3),
     low_contour_area_(500),
     high_contour_area_(200000),
-    last_image_count_(0),
     ll_annotation_(""),
     ll_color_(255, 255, 255),
     lr_annotation_(""),
@@ -627,7 +513,6 @@ ConeDetector::ConeDetector() :
     nh_ = ros::NodeHandle("~");
 
     assert(annotateService = nh_.advertiseService("annotate_detector_image", &ConeDetector::annotateCb, this));
-    assert(calibrateConeDetectionService = nh_.advertiseService("calibrate_cone_detection", &ConeDetector::calibrateConeDetectionCb, this));
 
     assert(image_pub_annotated_ = it_.advertise("cone_detector/annotated_image", 1));
     assert(image_pub_thresholded_ = it_.advertise("cone_detector/thresholded_image", 1));
