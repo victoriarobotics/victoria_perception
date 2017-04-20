@@ -4,5 +4,6 @@
 	<arg unless="$(arg doDebug)" name="launchPrefix" value="" />
 
 	<node pkg="victoria_perception" name="kmeans_service" type="kmeans_service_node" respawn="true" output="screen" launch-prefix="$(arg launchPrefix)" >
+
 	</node>
 </launch>
