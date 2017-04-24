@@ -6,7 +6,7 @@
   <arg name="camera_name" default="primesense_camera" doc="Name of camera, to get properties" />
   <arg name="debug_cone_detector" default="false" doc="false => log interesting debug data" />
   <arg name="erode_kernel_size" default="4" doc="kernel size for erode/dilate step" />
-  <arg name="fps" default="20" doc="Max frames per second to report object detection results" />
+  <arg name="fps" default="30" doc="Max frames per second to report object detection results" />
   <arg name="image_topic_name" default="/camera/color/image_raw" doc="camera topic name" />
   <arg name="image_transport" default="compressed" doc="image transport (e.g., compressed) to be used" />
   <arg name="max_aspect_ratio" default="0.85" doc="Max top_length / bottom_length acceptable for cone shape" />
