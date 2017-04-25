@@ -34,6 +34,7 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <string>
+#include <vector>
 
 #include "victoria_perception/ComputeKmeans.h"
 
@@ -71,8 +72,8 @@ private:
 	* a cluster (viz., hue channel, saturation channel or value channel).
 	*/
 	typedef struct ChannelRange {
-	    float min;      // Min channel value.
-	    float max;      // Max channel value.
+	    int min;      // Min channel value.
+	    int max;      // Max channel value.
 	    int count;      // Number of pixels in the cluster.
 	} ChannelRange;
 
@@ -105,7 +106,7 @@ private:
 	* to the color of pixels for cluster 1 and so forth.
 	* \param image 	The downsampled image which is copied and annotated.
 	*/
-	void createAnnotatedImage(const cv::Mat &image);
+	void createAnnotatedImage(const cv::Mat &image, std::vector<cv::Vec3b> clusters);
 
 	/*! \brief Create the result string for the service call.
 	* \param image 	The downsampled image. Used to find the colors of all pixels in a cluster.
