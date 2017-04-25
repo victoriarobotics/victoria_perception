@@ -114,7 +114,7 @@ void KmeansService::createAnnotatedImage(const cv::Mat &image, std::vector<cv::V
 
     // Place colored cluster key as rectangles along right side of annotated picture.
     for (int i = 0; i < number_clusters_; i++) {
-        cv::rectangle(annotated_image, cv::Point(width - 25, i * box_height), cv::Point(width, (i * box_height) + (box_height - 1)), clusters[i], CV_FILLED);
+        cv::rectangle(annotated_image, cv::Point(width - 25, i * box_height), cv::Point(width, (i * box_height) + (box_height - 1)), cv::Scalar(clusters[i]), CV_FILLED);
     }
 
     cv::namedWindow("KMEANS_annotated", cv::WINDOW_NORMAL);
