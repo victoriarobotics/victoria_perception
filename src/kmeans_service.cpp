@@ -96,35 +96,28 @@ void KmeansService::downSampleImage(const cv::Mat &original_image, cv::Mat& out_
     cv::resize(original_image, out_image, resize_dimensions);
 }
 
-void KmeansService::createAnnotatedImage(const cv::Mat &image) {
+void KmeansService::createAnnotatedImage(const cv::Mat &image, std::vector<cv::Vec3b> clusters) {
     int width = image.cols;
     cv::Mat annotated_image;    // For debugging purposes.
 
     image.copyTo(annotated_image); // For debugging purposes
 
     // Annotate the image with color boxes for each cluster.
-    cv::Scalar cluster_colors[number_clusters_];
-    cv::Vec3b cluster_colors_vec3b[number_clusters_];
     static const int box_height = image.rows / (number_clusters_ + 1);
-
-    for (int i = 0; i < number_clusters_; i++) {
-        cluster_colors[i] = cv::Scalar((rand() % number_clusters_) * (256 / number_clusters_), (rand() % number_clusters_) * (256 / number_clusters_), (rand() % number_clusters_) * (256 / number_clusters_));
-        cluster_colors_vec3b[i] = cv::Vec3b(cluster_colors[i][0], cluster_colors[i][1], cluster_colors[i][2]);
-    }
 
     // False color the image based upon pixel cluster.
     for (int row = 0; row < image.rows; row++) {
         for (int col = 0; col < image.cols; col++) {
-            annotated_image.at<cv::Vec3b>(row, col) = cluster_colors_vec3b[labels_.at<int>((row * image.cols) + col)];
+            annotated_image.at<cv::Vec3b>(row, col) = clusters[labels_.at<int>((row * image.cols) + col)];
         }
     }
 
     // Place colored cluster key as rectangles along right side of annotated picture.
     for (int i = 0; i < number_clusters_; i++) {
-        cv::rectangle(annotated_image, cv::Point(width - 25, i * box_height), cv::Point(width, (i * box_height) + (box_height - 1)), cluster_colors[i], CV_FILLED);
+        cv::rectangle(annotated_image, cv::Point(width - 25, i * box_height), cv::Point(width, (i * box_height) + (box_height - 1)), cv::Scalar(clusters[i]), CV_FILLED);
     }
 
-    cv::namedWindow("KMEANS_annotated", cv::WINDOW_AUTOSIZE);
+    cv::namedWindow("KMEANS_annotated", cv::WINDOW_NORMAL);
     cv::imshow("KMEANS_annotated", annotated_image);
     cv::waitKey(20);
 }
@@ -201,11 +194,11 @@ KmeansService::RESULT_T KmeansService::kmeansImage(const cv::Mat &original_image
     // Convert centers to colors.
     cv::Mat centers_u8;
     centers.convertTo(centers_u8, CV_8UC1, 255.0); // Convert the original centers to an array of clusters, scaled from [0..1) => [0..255].
-    //cv::Mat centers_u8c3 = centers_u8.reshape(3);   // Convert to 3 columns (R, G, B).
+    cv::Mat centers_u8c3 = centers_u8.reshape(3);   // Convert to 3 columns (R, G, B).
 
     createResultSet(image);
     if (show_annotated_window_) {
-        createAnnotatedImage(image);
+        createAnnotatedImage(image, centers_u8c3);
     }
 
     result_msg_ = "OK";
@@ -216,10 +209,10 @@ KmeansService::ChannelRange KmeansService::getClusterStatistics(const cv::Mat &i
     int width = image.cols;
     cv::MatConstIterator_<int> label_first = labels_.begin<int>();
     cv::MatConstIterator_<int> label_last = labels_.end<int>();
-    int count[256];
+    int histogram[256];
     ChannelRange result;
 
-    for (int i = 0; i < 256; i++) count[i] = 0;
+    for (int i = 0; i < 256; i++) histogram[i] = 0;
 
     int point_number = 0;
     int selected_point_count = 0;
@@ -229,7 +222,7 @@ KmeansService::ChannelRange KmeansService::getClusterStatistics(const cv::Mat &i
             cv::Mat hsv_mat;
             cv::cvtColor(bgr_mat, hsv_mat, cv::COLOR_BGR2HSV);
             cv::Vec3b  point_hsv = hsv_mat.at<cv::Vec3b>(0, 0);
-            count[point_hsv[channel_index]]++;
+            histogram[point_hsv[channel_index]]++;
             selected_point_count++;
         }
 
@@ -237,27 +230,41 @@ KmeansService::ChannelRange KmeansService::getClusterStatistics(const cv::Mat &i
         label_first++;
     }
 
-    // Remove outliers from the value counts.
-    int sum = 0;
-    int limit = selected_point_count  / 50;
-    int high_index = 255;
-    for (high_index = 255; high_index > 0; high_index--) {
-        sum += count[high_index];
-        if (sum >= limit) break;
+    // Find peak.
+    int max_value = 0;
+    int i_at_max = 0;
+    for (int i = 0; i < 256; i++) {
+        if (histogram[i] > max_value) {
+            max_value = histogram[i];
+            i_at_max = i;
+        }
     }
 
-    sum = 0;
-    int low_index = 0;
-    for (low_index = 0; low_index < 256; low_index++) {
-        sum += count[low_index];
-        if (sum >= limit) break;
+    // Find min range.
+    result.min = i_at_max;
+    for (int i = i_at_max; i >= 0; i--) {
+        if (histogram[i] < (max_value / 10)) break;
+        result.min = i;
     }
 
-    // Return the reduced min and max values for the HSV channel in the cluster, 
-    // and the total (non reduced) pixel count.
-    result.min = low_index;
-    result.max = high_index;
+    // Find max range.
+    result.max = i_at_max;
+    for (int i = i_at_max; i < 256; i++) {
+        if (histogram[i] < (max_value / 10)) break;
+        result.max = i;
+    }
+
     result.count = selected_point_count;
+
+    //### Debug code. TO BE REMOVED.
+    if (channel_index == 0) {
+        ROS_INFO("cluster: %d, channel: %d, min: %d, max: %d, selected_point_count: %d",
+        cluster_index, channel_index, result.min, result.max, selected_point_count);
+        std::ostringstream ss;
+        for (int i = 0; i < 256; i++) {ss << histogram[i] << ",";};ss<<std::endl;
+        ROS_INFO("histogram: %s", ss.str().c_str());
+    }
+
     return result;
 }
 
