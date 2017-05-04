@@ -12,7 +12,7 @@
 
   <depend>actionlib</depend>
   <depend>actionlib_msgs</depend>
-  <depend>Boost</depend>
+  <!--depend>Boost</depend-->
   <build_depend>camera_info_manager</build_depend>
   <buildtool_depend>catkin</buildtool_depend>
   <depend>cv_bridge</depend>
