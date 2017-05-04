@@ -3,7 +3,6 @@
 	<arg if="$(arg doDebug)" name="launchPrefix" value="xterm -e gdb -args" />
 	<arg unless="$(arg doDebug)" name="launchPrefix" value="" />
 
-	<node pkg="victoria_perception" name="kmeans_service" type="kmeans_service_node" respawn="true" output="screen" launch-prefix="$(arg launchPrefix)" >
+	<node pkg="victoria_perception" name="kmeans_action" type="kmeans_action_node" respawn="true" output="screen" launch-prefix="$(arg launchPrefix)" />
 
-	</node>
 </launch>

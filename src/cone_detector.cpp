@@ -512,7 +512,7 @@ ConeDetector::ConeDetector() :
 
     nh_ = ros::NodeHandle("~");
 
-    assert(annotateService = nh_.advertiseService("annotate_detector_image", &ConeDetector::annotateCb, this));
+    assert(annotate_service_ = nh_.advertiseService("annotate_detector_image", &ConeDetector::annotateCb, this));
 
     assert(image_pub_annotated_ = it_.advertise("cone_detector/annotated_image", 1));
     assert(image_pub_thresholded_ = it_.advertise("cone_detector/thresholded_image", 1));

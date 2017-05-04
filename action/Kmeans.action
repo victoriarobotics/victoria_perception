@@ -1,9 +1,12 @@
-# ComputeKmeans
+# Kmeans action
 int16 attempts
 string image_topic_name
 int16 number_clusters
 int16 resize_width
-bool show_annotated_window
 ----
+# Result
 string result_msg
 string kmeans_result
+----
+# Feedback
+string step

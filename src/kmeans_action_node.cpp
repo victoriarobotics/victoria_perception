@@ -24,22 +24,13 @@
 
 #include <ros/ros.h>
 #include <ros/console.h>
-#include <opencv2/core/core.hpp>
-#include <opencv2/highgui/highgui.hpp>
-
-#include "kmeans_service/kmeans_service.h"
+#include "kmeans/kmeans.h"
 
 int main(int argc, char** argv) {
-    KmeansService* kmeans_service;
+    ros::init(argc, argv, "kmeans_action_node");
+    Kmeans kmeans_action;
 
-    ros::init(argc, argv, "kmeans_service_node");
-
-    kmeans_service = new KmeansService();
-
-    while (ros::ok()) {
-        ros::spinOnce();
-        cv::waitKey(20);
-    }
+    ros::spin();
     
     return 0;
 }

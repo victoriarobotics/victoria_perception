@@ -117,7 +117,7 @@ private:
 	ros::Publisher cone_found_pub_;
 
 	// Process AnnotateDetectorImage service call.
-	ros::ServiceServer annotateService;
+	ros::ServiceServer annotate_service_;
 	std::string ll_annotation_;
 	cv::Scalar ll_color_;
 	std::string lr_annotation_;

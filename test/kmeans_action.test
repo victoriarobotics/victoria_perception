@@ -1,0 +1,15 @@
+<launch>
+	<node pkg="victoria_perception" name="publish_test_pattern_node" type="publish_image_node" respawn="false" output="screen" >
+			<param name="image_path" value="$(find victoria_perception)/test/test_raster.jpg" />
+			<param name="image_topic_name" value="/usb_cam/image_raw" />
+	</node>
+
+	<node pkg="victoria_perception" name="kmeans_action" type="kmeans_action_node" respawn="true" output="screen" />
+
+	<test 
+		test-name="test_kmeans" 
+		pkg="victoria_perception" 
+		type="victoria_perception_kmeans_test" 
+		time-limit="12.0"
+		/>
+</launch>

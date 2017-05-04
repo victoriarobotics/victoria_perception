@@ -11,6 +11,8 @@ add_definitions(-std=c++11)
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
+  actionlib_msgs
+  actionlib
   cv_bridge
   dynamic_reconfigure
   image_transport
@@ -68,19 +70,17 @@ add_message_files(
 add_service_files(
   FILES
   AnnotateDetectorImage.srv
-  ComputeKmeans.srv
 )
 
-## Generate actions in the 'action' folder
-# add_action_files(
-#   FILES
-#   Action1.action
-#   Action2.action
-# )
+add_action_files (
+  DIRECTORY action
+  FILES Kmeans.action
+)
 
 ## Generate added messages and services with any dependencies listed here
 generate_messages(
   DEPENDENCIES
+  actionlib_msgs
   sensor_msgs
   std_msgs
 )
@@ -116,8 +116,7 @@ generate_dynamic_reconfigure_options(
 catkin_package(
   INCLUDE_DIRS include
   CATKIN_DEPENDS image_transport roscpp rospy sensor_msgs std_msgs
-  CATKIN_DEPENDS message_runtime
-#  DEPENDS system_lib
+  CATKIN_DEPENDS message_generation message_runtime actionlib_msgs
 )
 
 ###########
@@ -128,9 +127,9 @@ catkin_package(
 ## Your package locations should be listed before other locations
 # include_directories(include)
 include_directories(
+  include
   ${catkin_INCLUDE_DIRS}
   ${OpenCV_INCLUDE_DIRS}
-  include
 )
 
 ## Declare a C++ library
@@ -161,16 +160,6 @@ add_dependencies(
   victoria_perception_generate_messages_cpp
 )
 
-add_executable(kmeans_service_node
-  src/kmeans_service_node.cpp
-  src/kmeans_service.cpp
-)
-
-add_dependencies(
-  kmeans_service_node 
-  victoria_perception_generate_messages_cpp
-)
-
 add_executable(publish_image_node
   src/publish_image_node.cpp
 )
@@ -179,6 +168,17 @@ add_dependencies(
   publish_image_node 
   victoria_perception_generate_messages_cpp
 )
+
+add_executable(kmeans_action_node
+  src/kmeans.cpp
+  src/kmeans_action_node.cpp
+)
+add_dependencies(kmeans_action_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+
+add_executable(invoke_kmeans_action_node
+  src/invoke_kmeans_action_node.cpp
+)
+add_dependencies(invoke_kmeans_action_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -199,15 +199,20 @@ target_link_libraries(
 )
 
 target_link_libraries(
-  kmeans_service_node
+  publish_image_node
+  ${catkin_LIBRARIES}
+)
+
+target_link_libraries(kmeans_action_node
   ${catkin_LIBRARIES}
   ${OpenCV_LIBS}
   ${Boost_LIBRARIES}
 )
 
-target_link_libraries(
-  publish_image_node
+target_link_libraries(invoke_kmeans_action_node
   ${catkin_LIBRARIES}
+  ${OpenCV_LIBS}
+  ${Boost_LIBRARIES}
 )
 
 roslaunch_add_file_check(launch)
@@ -259,3 +264,7 @@ roslaunch_add_file_check(launch)
 
 ## Add folders to be run by python nosetests
 # catkin_add_nosetests(test)
+
+if (CATKIN_ENABLE_TESTING)
+  add_subdirectory(test)
+endif()

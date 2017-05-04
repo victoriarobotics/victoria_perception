@@ -28,6 +28,7 @@
 #include <ros/ros.h>
 #include <ros/console.h>
 
+#include <actionlib/server/simple_action_server.h>
 #include <cv_bridge/cv_bridge.h>
 #include <image_transport/image_transport.h>
 #include "opencv2/core/core.hpp"
@@ -36,46 +37,69 @@
 #include <string>
 #include <vector>
 
-#include "victoria_perception/ComputeKmeans.h"
+#include "victoria_perception/KmeansAction.h"
 
-//* A KmeansService class.
+//* A Kmeans class.
 /**
-* This is a ROS service handler for the compute_kmeans service. The service request takes as parameters:
-* (see ComputeKmeans.srv)
+* This is a ROS action handler for the compute_kmeans action. 
+* The action goal takes as parameters:
+* (see Kmeans.action)
 * int16 	attempts 			The 'attempts' parameter to the cv::kmeans method.
 * string 	image_topic_name 	The topic name of the video stream.
 * int16 	number_clusters 	The 'K' parameter of cv::kmeans.
-* int16 	resize_width 		The downsample width of the original image to work with. It must be <= original image width.
-* bool 	show_annotated_window 	True => pop up an openCV window that is colorized to show the clusters.
+* int16 	resize_width 		The downsample width of the original image to work with. 
+*								It must be <= original image width. The height will be computed proportionately.
 *
-* It responds with two fields:
+* Progress is reported in one field:
+* string	step				This receives cluster histogram information in JSON format.
+*
+* Final result has two fields:
 * string 	result_msg 			"OK" for good result, else an error message.
-* string 	kmeans_result		The kmeans results.
+* string 	kmeans_result		The kmeans results in JSON format if result_msg is "OK".
 *
-* The kmeans_result, if result_msg is "OK" is formatted as a sequence of cluster results. Each cluster result begins
-* with a left curly brace and ends with a right curly brace. There are no characters between the right curly brace of
-* one cluser result and the left curly brace of the next.
+* Also, an "annotated_image" is written to the "kmeans/annotated_image" topic. This image will be a downsampled
+* version of the original image (see resize_width) where each pixel in the original image is replace with the
+* color of the correspnding cluster. This give a posterized result. Also, along the right edge of the
+* annotated image, a series of colored boxes is written, partially obscuring the original image. The
+* topmost box corresponds to the color for cluster 0, the box below corresponds to the color for cluster 1
+* and so on. You can use the cluster results produced in kmeans_result to map back to pixels in the original
+* image using this color key;
 *
-* Within the curly braces of a cluster result are a sequence of name, equal sign, value triples separated by semicolons.
+* Here is a snippet of a sample kmeans_result with extra carriage returns for readability:
+* {cluster= 0;min_hue=53;max_hue=53;min_saturation=4;max_saturation=4;min_value=234;max_value=235;pixels=9725}
+* {cluster= 1;min_hue=60;max_hue=60;min_saturation=5;max_saturation=33;min_value=196;max_value=218;pixels=6630}
 *
-* Here is a snippet of a kmeans_result string:
+* Note that there are no outer curly braces or brackets to enclose the list.
 *
-* {cluster=0;min_hue=15;max_hue=104;min_saturation=8;max_saturation=60;min_value=189;max_value=216;pixels=6635}{cluster=1;...}...
-*
-* The service constructs a listener for the next frame in the video stream for the topic, does the computation, then
+* The action constructs a listener for the next frame in the video stream for the topic, does the computation, then
 * uses the normal destructors to remove the listener.
 */
-class KmeansService {
-private:
+class Kmeans {
+protected:
 	/*!
 	* \brief Holds the value range (min, max) and pxiels in a cluster for one channel in
 	* a cluster (viz., hue channel, saturation channel or value channel).
 	*/
 	typedef struct ChannelRange {
-	    int min;      // Min channel value.
-	    int max;      // Max channel value.
-	    int count;      // Number of pixels in the cluster.
+	    unsigned int min;      // Min channel value.
+	    unsigned int max;      // Max channel value.
+	    unsigned int count;    // Number of pixels in the cluster.
 	} ChannelRange;
+
+	typedef actionlib::SimpleActionServer<victoria_perception::KmeansAction> KmeansActionServer;
+
+	// ROS node handles.
+	ros::NodeHandle nh_;								// Main ROS node handle.
+	image_transport::Publisher image_pub_annotated_;	// For publishing the annotated image.
+	image_transport::Subscriber image_sub_;				// Listen to the video stream.
+
+	/*! \brief Handle the action request to compute kmeans for the next video stream frame.
+	* \param goal 	The action goal for the ROS actionlib framework. See also the file KMeans.action.
+	* Return true iff the kmeans computation succeeded.
+	*/
+	bool computeKmeansCb(const victoria_perception::KmeansGoalConstPtr &goal);
+
+	KmeansActionServer compute_kmeans_action_server_;	// Handle to accept action requests.
 
 	/*!
 	* Indicates success or failure of a function.
@@ -85,30 +109,25 @@ private:
 		ERROR
 	};
 
-	// ROS node handles.
-	ros::NodeHandle nh_;						// Main ROS node handle.
-	ros::ServiceServer compute_kmeans_service_;	// Handle to accept service requests.
-
 	// Parameters
-	int attempts_;					// cv::kmeans 'attempts' value.
+	unsigned int attempts_;			// cv::kmeans 'attempts' value.
 	std::string image_topic_name_;	// Topic name containing video stream.
-	int number_clusters_;			// Number of clusters to form (cv::kmeans 'K' value).
-	int resize_width_;				// Downsample image to this width (height will be proportional).
-	bool show_annotated_window_;	// True => pop up window with posterized image where each poster color corresponds to a cluster.
-
+	unsigned int number_clusters_;	// Number of clusters to form (cv::kmeans 'K' value).
+	unsigned int resize_width_;		// Downsample image to this width (height will be proportional).
 	std::string result_set_;		// The string response to be returned on success.
 
-	/*! \brief Popup an OpenCV window of the downsampled image where each pixel
-	* is replaced by the random color associated with a cluster. On the right
+	/*! \brief Publish the annotated downsampled image where each pixel
+	* is replaced by the color associated with a cluster. On the right
 	* of the image, a sequence of colored boxes will be drawn. The topmost
 	* box corresponds to cluster 0 and is the color of all the false colored
-	* pixels in teh annotated image for cluster 0. The box below corresponds
+	* pixels in the annotated image for cluster 0. The box below corresponds
 	* to the color of pixels for cluster 1 and so forth.
-	* \param image 	The downsampled image which is copied and annotated.
+	* \param image 		The downsampled image which is copied and annotated.
+	* \param clusters 	The list of colors for each cluster.
 	*/
 	void createAnnotatedImage(const cv::Mat &image, std::vector<cv::Vec3b> clusters);
 
-	/*! \brief Create the result string for the service call.
+	/*! \brief Create the result string for the action request.
 	* \param image 	The downsampled image. Used to find the colors of all pixels in a cluster.
 	*/
 	void createResultSet(const cv::Mat& image);
@@ -127,8 +146,9 @@ private:
 	* \param image 			The downsampled image.
 	* \param cluster_index 	Which cluster to provide statistic for.
 	* \param channel_index	Which channel to provide statistic for. 0=>Hue, 1=>Saturation, 2=>Value.
+	* The result is the min, max channel values and pixel count for all pixels in the cluster, for the given channel.
 	*/
-	ChannelRange getClusterStatistics(const cv::Mat &image, int cluster_index, int channel_index);
+	ChannelRange getClusterStatistics(const cv::Mat &image, unsigned int cluster_index, unsigned int channel_index);
 	
 	/*! \brief Get the min/max of hue, saturation and value for all pixels in a cluster, as well as
 	* the count of all pixels in that cluster. See also getClusterStatistics for a note on the reduced range returned.
@@ -145,19 +165,19 @@ private:
 	void getHsvRangeForCluster(
 	         const cv::Mat &image,
 	         const cv::Mat& labels,
-	         int cluster_index,
+	         unsigned int cluster_index,
 	         uchar &min_hue,
 	         uchar &max_hue,
 	         uchar &min_saturation,
 	         uchar &max_saturation,
 	         uchar &min_value,
 	         uchar &max_value,
-	         int &pixels_in_cluster);
+	         unsigned int &pixels_in_cluster);
 
 	cv::Mat labels_; // Maps each pixel in image to the result cluster index.
 	image_transport::ImageTransport it_;  // OpenCV image transport.
 
-	// Since the image is processed ansynchronously on another thread from the service handler,
+	// Since the image is processed ansynchronously on another thread from the action request handler,
 	// This flag is used to indicate when the image processing is complete.
 	bool image_processed_;
 
@@ -167,15 +187,7 @@ private:
 	// An ok/error message from the asynchronous image processing.
 	std::string result_msg_;
 
-	/*! \brief Handle the service request to compute kmeans for the next video stream frame.
-	* \param request 	The service request for the ROS service framework. See also ComputeKmeans.srv.
-	* \param reponse 	The service response for the ROS service framework. See also ComputeKmeans.srv.
-	* Return true iff the kmeans computation succeeded.
-	*/
-	bool computeKmeansCb(victoria_perception::ComputeKmeans::Request &request,
-	                     victoria_perception::ComputeKmeans::Response &response);
-
-	/*! \brief A ROS topic framework message handler for the video stream.
+	/*! \brief A ROS topic message handler for the video stream.
 	* \param msg 	One frame of the video stream.
 	*/
 	void imageTopicCb(const sensor_msgs::ImageConstPtr& msg);
@@ -186,14 +198,20 @@ private:
 	*/
 	RESULT_T kmeansImage(const cv::Mat &original_image);
 
-	// Cannot copy or clone the class instance.
-	KmeansService(KmeansService const&) : it_(nh_) {};
-	KmeansService& operator=(KmeansService const&) {};
+	//Cannot copy or clone the class instance.
+	Kmeans(Kmeans const&) :
+	    compute_kmeans_action_server_(nh_,
+                                  "compute_kmeans",
+                                  boost::bind(&Kmeans::computeKmeansCb, this, _1), false),
+	    it_(nh_)
+		{};
+	Kmeans& operator=(Kmeans const&) {};
 
 public:
 	/*! \brief The class constructor. 
 	*/
-	KmeansService();	
+	Kmeans();
+
 };
 
 #endif // __VICTORIA_PERCEPTION_KMEANS

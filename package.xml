@@ -10,16 +10,21 @@
   <author email="mike@webself.com">wimble</author>
 
 
-  <buildtool_depend>catkin</buildtool_depend>
+  <depend>actionlib</depend>
+  <depend>actionlib_msgs</depend>
+  <depend>Boost</depend>
   <build_depend>camera_info_manager</build_depend>
-  <build_depend>roslaunch</build_depend>
+  <buildtool_depend>catkin</buildtool_depend>
   <depend>cv_bridge</depend>
   <depend>dynamic_reconfigure</depend>
   <depend>image_transport</depend>
   <depend>message_generation</depend>
   <depend>message_runtime</depend>
+  <depend>OpenCV</depend>
   <depend>roscpp</depend>
+  <depend>roslaunch</depend>
   <depend>rospy</depend>
+  <depend>rostest</depend>
   <depend>sensor_msgs</depend>
   <depend>std_msgs</depend>
   <exec_depend>topic_tools</exec_depend>
