@@ -23,6 +23,7 @@
 // OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <cassert>
+#include <boost/bind.hpp>
 #include <opencv2/core/core.hpp>
 #include <std_msgs/String.h>
 #include <sensor_msgs/image_encodings.h>
