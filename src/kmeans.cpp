@@ -294,11 +294,11 @@ Kmeans::ChannelRange Kmeans::getClusterStatistics(const cv::Mat &image, unsigned
     victoria_perception::KmeansFeedback feedback;
     std::ostringstream ss;
     ss << "{";
-    ss << "\"cluster\": " << cluster_index << ";";
-    ss << "\"channel\": " << channel_index << ";";
-    ss << "\"min\": " << result.min << ";";
-    ss << "\"max\": " << result.max << ";";
-    ss << "\"selected_point_count\": " << selected_point_count << ";";
+    ss << "\"cluster\": " << cluster_index << ",";
+    ss << "\"channel\": " << channel_index << ",";
+    ss << "\"min\": " << result.min << ",";
+    ss << "\"max\": " << result.max << ",";
+    ss << "\"selected_point_count\": " << selected_point_count << ",";
     ss << "\"histogram\": [";
     for (unsigned int i = 0; i < 256; i++) {
         if (i > 0) ss << ",";
