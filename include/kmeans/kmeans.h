@@ -125,12 +125,13 @@ protected:
 	* \param image 		The downsampled image which is copied and annotated.
 	* \param clusters 	The list of colors for each cluster.
 	*/
-	void createAnnotatedImage(const cv::Mat &image, std::vector<cv::Vec3b> clusters);
+	void createAnnotatedImage(const cv::Mat &image, const std::vector<cv::Vec3b>& clusters);
 
 	/*! \brief Create the result string for the action request.
-	* \param image 	The downsampled image. Used to find the colors of all pixels in a cluster.
+	* \param clusters The clusters.
+	* \param image 		The downsampled image. Used to find the colors of all pixels in a cluster.
 	*/
-	void createResultSet(const cv::Mat& image);
+	void createResultSet(const std::vector<cv::Vec3b>& clusters, const cv::Mat& image);
 
 	/*! \brief Downsample the original image for faster computation.
 	* \param original_image 	The original image.
@@ -143,15 +144,21 @@ protected:
 	* Hue values range in [0..179] and both saturation and value range in [0..255]. Because kmeans tends to include
 	* pixels in a cluster that doesn't seem to be well matched for any given channel, after the counts are totaled,
 	* a set of small count values are trimmed from both ends of the span and it's the reduced value range that is returned.
+	* \param clusters 		The clusters.
 	* \param image 			The downsampled image.
 	* \param cluster_index 	Which cluster to provide statistic for.
 	* \param channel_index	Which channel to provide statistic for. 0=>Hue, 1=>Saturation, 2=>Value.
 	* The result is the min, max channel values and pixel count for all pixels in the cluster, for the given channel.
 	*/
-	ChannelRange getClusterStatistics(const cv::Mat &image, unsigned int cluster_index, unsigned int channel_index);
+	ChannelRange getClusterStatistics(
+		const std::vector<cv::Vec3b>& clusters, 
+		const cv::Mat &image, 
+		unsigned int cluster_index, 
+		unsigned int channel_index);
 	
 	/*! \brief Get the min/max of hue, saturation and value for all pixels in a cluster, as well as
 	* the count of all pixels in that cluster. See also getClusterStatistics for a note on the reduced range returned.
+	* \param clusters 			The clusters.
 	* \param image 				The downsampled image.
 	* \param labels 			The kmeans label set. Each label corresponds to a pixel and the value is the cluster index for that pixel.
 	* \param min_hue			Out - the minimum hue of all pixels in the cluster.
@@ -163,6 +170,7 @@ protected:
 	* \param pixels_in_cluster	Out - the count of all pixels in the cluster.
 	*/
 	void getHsvRangeForCluster(
+	         const std::vector<cv::Vec3b>& clusters,
 	         const cv::Mat &image,
 	         const cv::Mat& labels,
 	         unsigned int cluster_index,

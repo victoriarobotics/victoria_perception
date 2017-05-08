@@ -1,3 +1,4 @@
+#include <iostream>
 // Copyright 2017 Michael Wimble
 
 // Redistribution and use in source and binary forms, with or without modification,
@@ -156,7 +157,7 @@ Kmeans::RESULT_T Kmeans::kmeansImage(const cv::Mat &original_image) {
     centers.convertTo(centers_u8, CV_8UC1, 255.0); // Convert the original centers to an array of clusters, scaled from [0..1) => [0..255].
     cv::Mat centers_u8c3 = centers_u8.reshape(3);   // Convert to 3 columns (R, G, B).
 
-    createResultSet(image);
+    createResultSet(centers_u8c3, image);
     createAnnotatedImage(image, centers_u8c3);
 
     result_msg_ = "OK";
@@ -173,10 +174,13 @@ void Kmeans::downSampleImage(const cv::Mat &original_image, cv::Mat& out_image) 
     cv::resize(original_image, out_image, resize_dimensions);
 }
 
-void Kmeans::createResultSet(const cv::Mat& image) {
+void Kmeans::createResultSet(const std::vector<cv::Vec3b>& clusters, const cv::Mat& image) {
     std::stringstream ss;
+    ss << "[";
 
     for (unsigned int i = 0; i < number_clusters_; i++) {
+        cv::Vec3b  point_bgr = clusters[i];
+
         uchar min_hue = 0;
         uchar max_hue = 0;
         uchar min_saturation = 0;
@@ -184,7 +188,8 @@ void Kmeans::createResultSet(const cv::Mat& image) {
         uchar min_value = 0;
         uchar max_value = 0;
         unsigned int pixels_in_cluster = 0;
-        getHsvRangeForCluster(image,
+        getHsvRangeForCluster(clusters,
+                              image,
                               labels_,
                               i,
                               min_hue,
@@ -194,30 +199,35 @@ void Kmeans::createResultSet(const cv::Mat& image) {
                               min_value,
                               max_value,
                               pixels_in_cluster);
-        ss << "{cluster=" << i;
-        ss << ";min_hue=" << (unsigned int) min_hue;
-        ss << ";max_hue=" << (unsigned int) max_hue;
-        ss << ";min_saturation=" << (unsigned int) min_saturation;
-        ss << ";max_saturation=" << (unsigned int) max_saturation;
-        ss << ";min_value=" << (unsigned int) min_value;
-        ss << ";max_value=" << (unsigned int) max_value;
-        ss << ";pixels=" << pixels_in_cluster << "}";
+        ss << "{\"cluster\":" << i;
+        ss << ",\"min_hue\":" << (unsigned int) min_hue;
+        ss << ",\"max_hue\":" << (unsigned int) max_hue;
+        ss << ",\"min_saturation\":" << (unsigned int) min_saturation;
+        ss << ",\"max_saturation\":" << (unsigned int) max_saturation;
+        ss << ",\"min_value\":" << (unsigned int) min_value;
+        ss << ",\"max_value\":" << (unsigned int) max_value;
+        ss << ",\"pixels\":" << pixels_in_cluster;
+        ss << ",\"color_rgb\":[" << int(point_bgr[2]) << "," << int(point_bgr[1]) << "," << int(point_bgr[0]) << "]";
+        ss  << "}";
+        if (i < (number_clusters_ - 1)) ss << ",";
     }
 
+    ss << "]";
     result_set_ = ss.str();
 }
 
 void Kmeans::getHsvRangeForCluster(
-         const cv::Mat &image,
-         const cv::Mat& labels,
-         unsigned int cluster_index,
-         uchar &min_hue,
-         uchar &max_hue,
-         uchar &min_saturation,
-         uchar &max_saturation,
-         uchar &min_value,
-         uchar &max_value,
-         unsigned int &pixels_in_cluster) {
+        const std::vector<cv::Vec3b>& clusters,
+        const cv::Mat &image,
+        const cv::Mat& labels,
+        unsigned int cluster_index,
+        uchar &min_hue,
+        uchar &max_hue,
+        uchar &min_saturation,
+        uchar &max_saturation,
+        uchar &min_value,
+        uchar &max_value,
+     unsigned int &pixels_in_cluster) {
     unsigned int width = image.cols;
 
     // Find the HSV range for all points in that cluster.
@@ -228,19 +238,23 @@ void Kmeans::getHsvRangeForCluster(
     min_value = 255;
     max_value = 0;
     ChannelRange ChannelRange;
-    ChannelRange = getClusterStatistics(image, cluster_index, 0);
+    ChannelRange = getClusterStatistics(clusters, image, cluster_index, 0);
     min_hue = ChannelRange.min;
     max_hue = ChannelRange.max;
-    ChannelRange = getClusterStatistics(image, cluster_index, 1);
+    ChannelRange = getClusterStatistics(clusters, image, cluster_index, 1);
     min_saturation = ChannelRange.min;
     max_saturation = ChannelRange.max;
-    ChannelRange = getClusterStatistics(image, cluster_index, 2);
+    ChannelRange = getClusterStatistics(clusters, image, cluster_index, 2);
     min_value = ChannelRange.min;
     max_value = ChannelRange.max;
     pixels_in_cluster = ChannelRange.count;
 }
 
-Kmeans::ChannelRange Kmeans::getClusterStatistics(const cv::Mat &image, unsigned int cluster_index, unsigned int channel_index) {
+Kmeans::ChannelRange Kmeans::getClusterStatistics(
+        const std::vector<cv::Vec3b>& clusters,
+        const cv::Mat &image, 
+        unsigned int cluster_index, 
+        unsigned int channel_index) {
     unsigned int width = image.cols;
     cv::MatConstIterator_<unsigned int> label_first = labels_.begin<unsigned int>();
     cv::MatConstIterator_<unsigned int> label_last = labels_.end<unsigned int>();
@@ -312,7 +326,7 @@ Kmeans::ChannelRange Kmeans::getClusterStatistics(const cv::Mat &image, unsigned
     return result;
 }
 
-void Kmeans::createAnnotatedImage(const cv::Mat &image, std::vector<cv::Vec3b> clusters) {
+void Kmeans::createAnnotatedImage(const cv::Mat &image, const std::vector<cv::Vec3b>& clusters) {
     unsigned int width = image.cols;
     cv::Mat annotated_image;    // For debugging purposes.
 

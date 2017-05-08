@@ -34,22 +34,22 @@
 // Which corresponds to the expected result set.
 
 static const std::string G_EXPECTED_RESULT =
-"{cluster=0;min_hue=60;max_hue=60;min_saturation=255;max_saturation=255;min_value=128;max_value=128;pixels=4800}"
-"{cluster=1;min_hue=165;max_hue=165;min_saturation=255;max_saturation=255;min_value=255;max_value=255;pixels=4800}"
-"{cluster=2;min_hue=0;max_hue=0;min_saturation=255;max_saturation=255;min_value=254;max_value=254;pixels=4800}"
-"{cluster=3;min_hue=60;max_hue=60;min_saturation=255;max_saturation=255;min_value=255;max_value=255;pixels=4800}"
-"{cluster=4;min_hue=15;max_hue=15;min_saturation=170;max_saturation=170;min_value=153;max_value=153;pixels=4800}"
-"{cluster=5;min_hue=120;max_hue=120;min_saturation=255;max_saturation=255;min_value=254;max_value=254;pixels=4800}"
-"{cluster=6;min_hue=150;max_hue=150;min_saturation=255;max_saturation=255;min_value=255;max_value=255;pixels=4800}"
-"{cluster=7;min_hue=150;max_hue=150;min_saturation=255;max_saturation=255;min_value=126;max_value=126;pixels=4800}"
-"{cluster=8;min_hue=80;max_hue=80;min_saturation=153;max_saturation=153;min_value=254;max_value=254;pixels=4800}"
-"{cluster=9;min_hue=120;max_hue=120;min_saturation=154;max_saturation=154;min_value=254;max_value=254;pixels=4800}"
-"{cluster=10;min_hue=90;max_hue=90;min_saturation=255;max_saturation=255;min_value=255;max_value=255;pixels=4800}"
-"{cluster=11;min_hue=15;max_hue=15;min_saturation=255;max_saturation=255;min_value=255;max_value=255;pixels=4800}"
-"{cluster=12;min_hue=90;max_hue=90;min_saturation=255;max_saturation=255;min_value=129;max_value=129;pixels=4800}"
-"{cluster=13;min_hue=0;max_hue=0;min_saturation=255;max_saturation=255;min_value=128;max_value=128;pixels=4800}"
-"{cluster=14;min_hue=30;max_hue=30;min_saturation=153;max_saturation=153;min_value=255;max_value=255;pixels=4800}"
-"{cluster=15;min_hue=30;max_hue=30;min_saturation=255;max_saturation=255;min_value=255;max_value=255;pixels=4800}";
+"[{\"cluster\":0,\"min_hue\":60,\"max_hue\":60,\"min_saturation\":255,\"max_saturation\":255,\"min_value\":128,\"max_value\":128,\"pixels\":4800,\"color_rgb\":[1,127,3]},"
+"{\"cluster\":1,\"min_hue\":165,\"max_hue\":165,\"min_saturation\":255,\"max_saturation\":255,\"min_value\":255,\"max_value\":255,\"pixels\":4800,\"color_rgb\":[253,1,128]},"
+"{\"cluster\":2,\"min_hue\":0,\"max_hue\":0,\"min_saturation\":255,\"max_saturation\":255,\"min_value\":254,\"max_value\":254,\"pixels\":4800,\"color_rgb\":[252,1,1]},"
+"{\"cluster\":3,\"min_hue\":60,\"max_hue\":60,\"min_saturation\":255,\"max_saturation\":255,\"min_value\":255,\"max_value\":255,\"pixels\":4800,\"color_rgb\":[2,254,4]},"
+"{\"cluster\":4,\"min_hue\":15,\"max_hue\":15,\"min_saturation\":170,\"max_saturation\":170,\"min_value\":153,\"max_value\":153,\"pixels\":4800,\"color_rgb\":[152,102,52]},"
+"{\"cluster\":5,\"min_hue\":120,\"max_hue\":120,\"min_saturation\":255,\"max_saturation\":255,\"min_value\":254,\"max_value\":254,\"pixels\":4800,\"color_rgb\":[1,1,251]},"
+"{\"cluster\":6,\"min_hue\":150,\"max_hue\":150,\"min_saturation\":255,\"max_saturation\":255,\"min_value\":255,\"max_value\":255,\"pixels\":4800,\"color_rgb\":[253,2,250]},"
+"{\"cluster\":7,\"min_hue\":150,\"max_hue\":150,\"min_saturation\":255,\"max_saturation\":255,\"min_value\":126,\"max_value\":126,\"pixels\":4800,\"color_rgb\":[127,0,124]},"
+"{\"cluster\":8,\"min_hue\":80,\"max_hue\":80,\"min_saturation\":153,\"max_saturation\":153,\"min_value\":254,\"max_value\":254,\"pixels\":4800,\"color_rgb\":[103,253,203]},"
+"{\"cluster\":9,\"min_hue\":120,\"max_hue\":120,\"min_saturation\":154,\"max_saturation\":154,\"min_value\":254,\"max_value\":254,\"pixels\":4800,\"color_rgb\":[101,102,253]},"
+"{\"cluster\":10,\"min_hue\":90,\"max_hue\":90,\"min_saturation\":255,\"max_saturation\":255,\"min_value\":255,\"max_value\":255,\"pixels\":4800,\"color_rgb\":[2,254,253]},"
+"{\"cluster\":11,\"min_hue\":15,\"max_hue\":15,\"min_saturation\":255,\"max_saturation\":255,\"min_value\":255,\"max_value\":255,\"pixels\":4800,\"color_rgb\":[255,126,3]},"
+"{\"cluster\":12,\"min_hue\":90,\"max_hue\":90,\"min_saturation\":255,\"max_saturation\":255,\"min_value\":129,\"max_value\":129,\"pixels\":4800,\"color_rgb\":[0,128,130]},"
+"{\"cluster\":13,\"min_hue\":0,\"max_hue\":0,\"min_saturation\":255,\"max_saturation\":255,\"min_value\":128,\"max_value\":128,\"pixels\":4800,\"color_rgb\":[127,1,0]},"
+"{\"cluster\":14,\"min_hue\":30,\"max_hue\":30,\"min_saturation\":153,\"max_saturation\":153,\"min_value\":255,\"max_value\":255,\"pixels\":4800,\"color_rgb\":[254,254,104]},"
+"{\"cluster\":15,\"min_hue\":30,\"max_hue\":30,\"min_saturation\":255,\"max_saturation\":255,\"min_value\":255,\"max_value\":255,\"pixels\":4800,\"color_rgb\":[255,254,2]}]";
 
 // Declare a test
 TEST(TestSuite, testCase1)
