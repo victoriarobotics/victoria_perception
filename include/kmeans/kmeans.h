@@ -29,6 +29,7 @@
 #include <ros/console.h>
 
 #include <actionlib/server/simple_action_server.h>
+#include <algorithm>
 #include <cv_bridge/cv_bridge.h>
 #include <image_transport/image_transport.h>
 #include "opencv2/core/core.hpp"

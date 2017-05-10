@@ -24,6 +24,7 @@
 // OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <cstdlib>
+#include <limits.h>
 #include <sensor_msgs/image_encodings.h>
 #include "kmeans/kmeans.h"
 #include "victoria_perception/KmeansFeedback.h"
@@ -250,6 +251,9 @@ void Kmeans::getHsvRangeForCluster(
     pixels_in_cluster = ChannelRange.count;
 }
 
+typedef struct HIST_DATA { unsigned int count; unsigned int value; HIST_DATA(int c, int x) : count(c), value(x){};} HIST_DATA;
+bool sortHistData(const HIST_DATA& l, const HIST_DATA& r) { return l.count > r.count; }
+
 Kmeans::ChannelRange Kmeans::getClusterStatistics(
         const std::vector<cv::Vec3b>& clusters,
         const cv::Mat &image, 
@@ -280,28 +284,48 @@ Kmeans::ChannelRange Kmeans::getClusterStatistics(
     }
 
     // Find peak.
+    std::vector<HIST_DATA> data_set;
     unsigned int max_value = 0;
     unsigned int i_at_max = 0;
     for (unsigned int i = 0; i < 256; i++) {
+        data_set.push_back(HIST_DATA(histogram[i], i));
         if (histogram[i] > max_value) {
             max_value = histogram[i];
             i_at_max = i;
         }
     }
 
-    // Find min range.
-    result.min = i_at_max;
-    for (int i = i_at_max; i >= 0; i--) {
-        if (histogram[i] < (max_value / 10)) break;
-        result.min = i;
+    std::sort(data_set.begin(), data_set.end(), sortHistData);
+
+    unsigned int value_min = UINT_MAX;
+    unsigned int value_max = 0;
+    unsigned int count_sum = 0;
+    unsigned int desired_sum = int(selected_point_count * 0.90);
+    for (std::vector<HIST_DATA>::iterator it = data_set.begin(); it < data_set.end(); it++) {
+        if (it->value < value_min) value_min = it->value;
+        if (it->value > value_max) value_max = it->value;
+        count_sum += it->count;
+        // ROS_INFO("count: %d, value: %d, count_sum: %d, value_min: %d, value_max: %d",
+        //          it->count, it->value, count_sum, value_min, value_max);//#####
+        if (count_sum >= desired_sum) break;
     }
 
-    // Find max range.
-    result.max = i_at_max;
-    for (unsigned int i = i_at_max; i < 256; i++) {
-        if (histogram[i] < (max_value / 10)) break;
-        result.max = i;
-    }
+    result.min = value_min;
+    result.max = value_max;
+
+    // // Find min range.
+    // result.min = i_at_max;
+    // for (int i = i_at_max; i >= 0; i--) {
+    //     if (histogram[i] < (max_value / 10)) break;
+    //     result.min = i;
+    // }
+
+    // // Find max range.
+    // result.max = i_at_max;
+    // for (unsigned int i = i_at_max; i < 256; i++) {
+    //     if (histogram[i] < (max_value / 10)) break;
+    //     result.max = i;
+    // }
 
     result.count = selected_point_count;
 
